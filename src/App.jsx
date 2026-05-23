@@ -73,11 +73,27 @@ export default function App() {
     };
 
     return (
+        /* The outer container wrapper must remain 100% transparent so your desktop engine doesn't render box borders */
         <div className="w-full h-screen p-3 bg-transparent select-none font-sans antialiased">
-            <div className={`w-full h-full border rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${noteColor.split(' ').slice(0,3).join(' ')}`}>
 
+            {/* THE MAIN NOTE CARD WIDGET FRAME */}
+            <div className={`
+            w-full h-full 
+            border border-black
+            rounded-4xl 
+            bg-red-50
+            border-20
+            shadow-3xl 
+            flex flex-col 
+            overflow-hidden 
+            transition-all duration-300 
+            ${noteColor.split(' ').slice(0,3).join(' ')}
+        `}>
+
+                {/* 1. Header Component Handle */}
                 <Header title={noteTitle} noteColor={noteColor} ipcRenderer={ipcRenderer} />
 
+                {/* 2. Scrollable Body Content Element */}
                 <div className="flex-1 p-4 flex flex-col overflow-hidden">
                     <ThemeSelector onChangeTheme={changeTheme} />
 
@@ -85,17 +101,18 @@ export default function App() {
                         <div className="flex-1 flex items-center justify-center text-xs opacity-50 animate-pulse">Initializing SQLite Context...</div>
                     ) : (
                         <>
+                            db ready
                             <TaskForm onAddTask={addTask} />
                             <TaskList tasks={tasks} onToggleTask={toggleTask} />
 
                             {/* Utility Footer Hooks */}
-                            <div className="no-drag mt-3 pt-2 border-t border-black/5 flex justify-between items-center text-[10px]">
-                                <button onClick={clearCompleted} className="px-2 py-1 bg-black/5 hover:bg-black/10 rounded font-medium opacity-75">
+                            <div style={{ WebkitAppRegion: 'no-drag' }} className="mt-3 pt-2 border-t border-black/5 flex justify-between items-center text-[10px]">
+                                <button onClick={clearCompleted} className="px-2 py-1 bg-black/5 hover:bg-black/10 rounded font-medium opacity-75 cursor-pointer">
                                     Clear Done
                                 </button>
 
                                 <div className="flex gap-1.5">
-                                    <button onClick={triggerJsonExport} className="hover:underline font-bold text-slate-700">Export</button>
+                                    <button onClick={triggerJsonExport} className="hover:underline font-bold text-slate-700 cursor-pointer">Export</button>
                                     <span className="opacity-30">|</span>
                                     <label className="hover:underline font-bold text-slate-700 cursor-pointer">
                                         Import

@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import initSqlJs from 'sql.js';
 
+// Safe extraction mapping handle
+const electron = window.require ? window.require('electron') : null;
+const ipcRenderer = electron ? electron.ipcRenderer : null;
+
 const colorThemes = {
     yellow: "bg-amber-200 border-amber-300 text-amber-900 header-amber-300",
     pink: "bg-rose-200 border-rose-300 text-rose-900 header-rose-300",
@@ -11,15 +15,30 @@ const colorThemes = {
 export function useSqliteData() {
     const [db, setDb] = useState(null);
     const [tasks, setTasks] = useState([]);
-    const [noteTitle, setNoteTitle] = useState("My Sticky Note");
-    const [noteColor, setNoteColor] = useState(colorThemes.yellow);
+    const [noteTitle, setNoteTitle] = useState("Loading Note UI..."); // Temporary fallback state
     const [dbReady, setDbReady] = useState(false);
+
+    const [noteColor, setNoteColor] = useState(colorThemes.yellow);
 
     useEffect(() => {
         async function setupDatabase() {
             try {
+
+                // 1. Fetch config variables dynamically from the backend main process config
+                let dynamicAppName = "My Sticky Note";
+                if (ipcRenderer) {
+                    const runtimeConfig = await ipcRenderer.invoke('get-app-config');
+                    dynamicAppName = runtimeConfig.appName;
+                }
+
                 const SQL = await initSqlJs({
-                    locateFile: file => `https://js.org{file}`
+                    // locateFile: file => `https://js.org{file}`
+                    // locateFile: file => `https://sql.js.org/dist/${file}`
+                    locateFile: (file) => {
+                        console.log(`Mapping localized SQLite file layer:, ${file}`);
+                        return './sql-wasm.wasm';
+                    }
+
                 });
 
                 let activeDb;
@@ -34,16 +53,41 @@ export function useSqliteData() {
                         CREATE TABLE IF NOT EXISTS sticky_meta (key TEXT PRIMARY KEY, value TEXT);
                         CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, task_text TEXT, is_completed INTEGER);
                     `);
-                    activeDb.run("INSERT OR IGNORE INTO sticky_meta VALUES ('title', 'My Sticky Note')");
+                    // Use the centralized application configuration string for data initialization
+                    activeDb.run("INSERT OR IGNORE INTO sticky_meta VALUES ('title', ?)", [dynamicAppName]);
                     activeDb.run("INSERT OR IGNORE INTO sticky_meta VALUES ('color', 'yellow')");
-                    saveToLocalStorage(activeDb);
+
+                    const binaryData = activeDb.export();
+                    const base64Str = btoa(String.fromCharCode.apply(null, binaryData));
+                    localStorage.setItem('sqlite_backup', base64Str);
                 }
 
                 setDb(activeDb);
                 setDbReady(true);
-                refreshUiData(activeDb);
+
+                // 1. Core Fetch Meta Settings
+                const metaRes = activeDb.exec("SELECT key, value FROM sticky_meta");
+                if (metaRes.length > 0) {
+                    const metaRows = metaRes[0].values;
+                    const titleObj = metaRows.find(r => r[0] === 'title');
+                    if (titleObj) setNoteTitle(titleObj[1]);
+                }
+
+                // 2. Core Fetch Relational Tasks List
+                const taskRes = targetDb.exec("SELECT id, task_text, is_completed FROM tasks");
+                if (taskRes && taskRes.length > 0 && taskRes[0].values) {
+                    const mappedTasks = taskRes[0].values.map(row => ({
+                        id: row[0],
+                        text: row[1],
+                        done: row[2] === 1
+                    }));
+                    setTasks(mappedTasks);
+                } else {
+                    setTasks([]);
+                }
+
             } catch (err) {
-                console.error("Failed initializing SQLite Wasm instance:", err);
+                console.error("Failed initializing configuration databases:", err);
             }
         }
         setupDatabase();
@@ -112,4 +156,5 @@ export function useSqliteData() {
     };
 
     return { db, dbReady, tasks, noteTitle, noteColor, addTask, toggleTask, clearCompleted, changeTheme, saveToLocalStorage, refreshUiData };
+
 }
