@@ -100,3 +100,12 @@ ipcMain.handle('get-app-config', () => {
         taskManagerServiceName: config.taskManagerServiceName
     };
 });
+
+ipcMain.on('set-always-on-top', (event, shouldPin) => {
+    // Grab the specific browser window context instance sending the click signal
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+        win.setAlwaysOnTop(shouldPin);
+        console.log(`Sticky Note Float State adjusted locally to: ${shouldPin}`);
+    }
+});

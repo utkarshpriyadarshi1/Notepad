@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import {useState} from 'react';
 
-export default function TaskForm({ onAddTask }) {
+export default function TaskForm({onAddTask}) {
     const [taskInput, setTaskInput] = useState('');
 
     const handleSubmit = (e) => {
@@ -10,16 +10,14 @@ export default function TaskForm({ onAddTask }) {
         setTaskInput('');
     };
 
-    return (
-        <form onSubmit={handleSubmit} className="no-drag flex gap-1.5 mb-3">
+    return (<form onSubmit={handleSubmit} className="no-drag flex mb-3">
+            {/* The form submit event listens to the Enter key automatically */}
             <input
                 type="text"
                 value={taskInput}
                 onChange={(e) => setTaskInput(e.target.value)}
-                placeholder="Add task objective..."
-                className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-black/10 bg-white/60 backdrop-blur-sm focus:outline-none focus:bg-white text-slate-800 font-medium"
+                placeholder="Type objective and press Enter..."
+                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-black/10 bg-white/60 backdrop-blur-sm focus:outline-none focus:bg-white text-slate-800 font-medium placeholder:text-slate-400"
             />
-            <button type="submit" className="px-3 py-1 bg-black/80 hover:bg-black text-white rounded-lg text-xs font-bold transition-colors">+</button>
-        </form>
-    );
+        </form>);
 }
