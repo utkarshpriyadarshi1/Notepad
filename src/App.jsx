@@ -39,7 +39,7 @@ export default function App() {
         updateMarkdown((markdownText || "") + syntax);
     };
 
-    return (<div className="w-full h-screen p-3 bg-transparent font-sans antialiased relative">
+    return (<div className="w-full h-screen bg-transparent font-sans antialiased relative">
             <div
                 className={`w-full h-full border border-black/20 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${noteColor.split(' ').slice(0, 3).join(' ')}`}>
 

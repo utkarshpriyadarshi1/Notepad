@@ -2,6 +2,9 @@
 module.exports = {
     // App Branding Configurations
     appName: "StickyFlow Desktop",
+
+    dbFileName: "stickyflow_data.db",
+
     taskManagerServiceName: "StickyFlow_TaskCore_Service",
     appVersion: "1.0.0",
 
