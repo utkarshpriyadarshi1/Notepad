@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { persistDatabaseToDisk } from './dbController';
+import {defaultTitle} from "../../../app.config";
 
 export function useThemeActions(db, ipcRenderer, triggerRefresh, colorThemes) {
-    const [noteTitle, setNoteTitle] = useState("My Sticky Note");
+    const [noteTitle, setNoteTitle] = useState(defaultTitle);
     const [noteColor, setNoteColor] = useState(colorThemes.glass);
 
     const changeTheme = (colorName) => {

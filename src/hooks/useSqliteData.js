@@ -1,20 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { initializeLocalDatabase, persistDatabaseToDisk } from './sqlite/dbController';
-import { useTaskActions } from './sqlite/useTaskActions';
-import { useThemeActions } from './sqlite/useThemeActions';
-import { useMarkdownActions } from './sqlite/useMarkdownActions';
-import { useAdminActions } from './sqlite/useAdminActions';
+import {useCallback, useEffect, useState} from 'react';
+import {initializeLocalDatabase, persistDatabaseToDisk} from './sqlite/dbController';
+import {useTaskActions} from './sqlite/useTaskActions';
+import {useThemeActions} from './sqlite/useThemeActions';
+import {useMarkdownActions} from './sqlite/useMarkdownActions';
+import {useAdminActions} from './sqlite/useAdminActions';
+import {colorThemes, defaultTitle} from "../../app.config";
 
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 
-const colorThemes = {
-    glass: "bg-white/40 border-white/20 text-slate-900 header-white/30 glass-effect",
-    yellow: "bg-amber-200/90 border-amber-300/50 text-amber-900 header-amber-300/60",
-    pink: "bg-rose-200/90 border-rose-300/50 text-rose-900 header-rose-300/60",
-    blue: "bg-sky-200/90 border-sky-300/50 text-sky-900 header-sky-300/60",
-    green: "bg-emerald-200/90 border-emerald-300/50 text-emerald-900 header-emerald-300/60"
-};
 
 export function useSqliteData() {
     const [db, setDb] = useState(null);
@@ -50,14 +44,18 @@ export function useSqliteData() {
 
             const taskRes = targetDb.exec("SELECT id, task_text, is_completed FROM tasks");
             if (taskRes?.length > 0 && taskRes[0].values) {
-                taskModule.setTasks(taskRes[0].values.map(row => ({ id: row[0], text: row[1], done: row[2] === 1 })));
-            } else { taskModule.setTasks([]); }
-        } catch (err) { console.error("Sync structural error:", err); }
+                taskModule.setTasks(taskRes[0].values.map(row => ({id: row[0], text: row[1], done: row[2] === 1})));
+            } else {
+                taskModule.setTasks([]);
+            }
+        } catch (err) {
+            console.error("Sync structural error:", err);
+        }
     }, [taskModule, themeModule, markdownModule]);
 
     useEffect(() => {
         async function boot() {
-            let defaultName = "My Sticky Note";
+            let defaultName = defaultTitle;
             if (ipcRenderer) {
                 const config = await ipcRenderer.invoke('get-app-config');
                 if (config?.appName) defaultName = config.appName;
@@ -68,17 +66,26 @@ export function useSqliteData() {
             refreshUiData(activeDb);
             setDbReady(true);
         }
+
         boot();
     }, []);
 
-    useEffect(() => { if (dbReady && db) refreshUiData(db); }, [refreshTrigger]);
+    useEffect(() => {
+        if (dbReady && db) refreshUiData(db);
+    }, [refreshTrigger]);
 
     const resetDatabase = async () => {
-        if (ipcRenderer) { await ipcRenderer.invoke('purge-db-file'); window.location.reload(); }
+        if (ipcRenderer) {
+            await ipcRenderer.invoke('purge-db-file');
+            window.location.reload();
+        }
     };
 
     const toggleAlwaysOnTop = () => {
-        setAlwaysOnTop(prev => { if (ipcRenderer) ipcRenderer.send('set-always-on-top', !prev); return !prev; });
+        setAlwaysOnTop(prev => {
+            if (ipcRenderer) ipcRenderer.send('set-always-on-top', !prev);
+            return !prev;
+        });
     };
 
     const handleServiceAction = async (action) => {
@@ -88,15 +95,27 @@ export function useSqliteData() {
     };
 
     const exportSingleTask = (task) => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ type: "Single Task Export", task }));
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+            type: "Single Task Export", task
+        }));
         const anchor = document.createElement('a');
-        anchor.setAttribute("href", dataStr); anchor.setAttribute("download", `task_${task.id}.json`);
-        document.body.appendChild(anchor); anchor.click(); anchor.remove();
+        anchor.setAttribute("href", dataStr);
+        anchor.setAttribute("download", `task_${task.id}.json`);
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
     };
 
     return {
-        db, dbReady, alwaysOnTop, serviceStatus, resetDatabase, toggleAlwaysOnTop, handleServiceAction, exportSingleTask,
-        saveToLocalStorage: (targetDb) => persistDatabaseToDisk(ipcRenderer, targetDb), refreshUiData,
-        ...taskModule, ...themeModule, ...markdownModule, ...adminModule
+        db,
+        dbReady,
+        alwaysOnTop,
+        serviceStatus,
+        resetDatabase,
+        toggleAlwaysOnTop,
+        handleServiceAction,
+        exportSingleTask,
+        saveToLocalStorage: (targetDb) => persistDatabaseToDisk(ipcRenderer, targetDb),
+        refreshUiData, ...taskModule, ...themeModule, ...markdownModule, ...adminModule
     };
 }

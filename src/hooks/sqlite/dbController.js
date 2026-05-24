@@ -28,12 +28,21 @@ export async function initializeLocalDatabase(ipcRenderer, defaultName) {
     }
 }
 
+let saveTimeout = null;
+
 export async function persistDatabaseToDisk(ipcRenderer, targetDb) {
     if (!targetDb || !ipcRenderer) return;
-    try {
-        const rawUint8Array = targetDb.export();
-        await ipcRenderer.invoke('save-db-file', rawUint8Array);
-    } catch (err) {
-        console.error("Failed writing binary buffer array back to data file:", err);
-    }
+
+    // Clear previous pending writes to debounce the disk I/O overhead
+    if (saveTimeout) clearTimeout(saveTimeout);
+
+    saveTimeout = setTimeout(async () => {
+        try {
+            const rawUint8Array = targetDb.export(); // Binary dump snapshot
+            await ipcRenderer.invoke('save-db-file', rawUint8Array);
+            console.log("⚡ [Optimization] Batched database flush to physical disk completed.");
+        } catch (err) {
+            console.error("Failed writing binary buffer array back to data file:", err);
+        }
+    }, 500); // Wait for 500ms of user silence before writing to hard disk
 }
