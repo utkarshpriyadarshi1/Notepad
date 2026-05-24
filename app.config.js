@@ -1,7 +1,7 @@
 // app.config.js
 module.exports = {
     // App Branding Configurations
-    appName: "StickyFlow Desktop",
+    appName: "Sticky Flow Desktop",
 
     dbFileName: "stickyflow_data.db",
 
@@ -11,9 +11,9 @@ module.exports = {
     // Asset Asset Mapping Routes
     // (Note: paths are relative to the project execution environment root)
     icons: {
-        appIcon: "./electron/assets/app-icon.ico",       // Desktop app profile icon
+        appIcon: "./electron/assets/hero.png", // app-icon.ico",       // Desktop app profile icon
         trayIcon: "./electron/assets/hero.png",     // Taskbar system tray icon
-        taskbarIcon: "./electron/assets/vite.svg" // Operational dock taskbar icon
+        taskbarIcon: "./electron/assets/hero.png" // Operational dock taskbar icon
     },
 
     // Window Layout Defaults
