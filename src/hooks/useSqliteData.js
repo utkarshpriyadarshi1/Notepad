@@ -25,6 +25,19 @@ export function useSqliteData() {
     const markdownModule = useMarkdownActions(db, ipcRenderer, triggerRefresh);
     const adminModule = useAdminActions(db, ipcRenderer, triggerRefresh);
 
+    const logUiError = (level, message, errorObject = null) => {
+        if (ipcRenderer) {
+            ipcRenderer.send('log-ui-event', {
+                level: level,
+                moduleName: 'React_Frontend_UI',
+                message: message,
+                stack: errorObject ? errorObject.stack : ''
+            });
+        } else {
+            console.error(`[${level}] [React_Fallback] ${message}`, errorObject);
+        }
+    };
+
     const refreshUiData = useCallback((targetDb) => {
         if (!targetDb) return;
         try {
@@ -116,6 +129,6 @@ export function useSqliteData() {
         handleServiceAction,
         exportSingleTask,
         saveToLocalStorage: (targetDb) => persistDatabaseToDisk(ipcRenderer, targetDb),
-        refreshUiData, ...taskModule, ...themeModule, ...markdownModule, ...adminModule
+        refreshUiData, ...taskModule, ...themeModule, ...markdownModule, ...adminModule, logUiError
     };
 }

@@ -23,6 +23,7 @@ export async function initializeLocalDatabase(ipcRenderer, defaultName) {
         }
         return activeDb;
     } catch (err) {
+        logUiError('FATAL', `SQLite Wasm Initialization Failed: ${err.message}`, err); // 👈 FORWARDS CRASH TO DISK LOG
         console.error("Critical database boot thread crash:", err);
         throw err;
     }

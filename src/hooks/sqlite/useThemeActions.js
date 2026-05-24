@@ -4,7 +4,7 @@ import {defaultTitle} from "../../../app.config";
 
 export function useThemeActions(db, ipcRenderer, triggerRefresh, colorThemes) {
     const [noteTitle, setNoteTitle] = useState(defaultTitle);
-    const [noteColor, setNoteColor] = useState(colorThemes.glass);
+    const [noteColor, setNoteColor] = useState(colorThemes.yellow);
 
     const changeTheme = (colorName) => {
         if (!db) return;
