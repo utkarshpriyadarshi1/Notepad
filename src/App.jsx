@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useSqliteData } from './hooks/useSqliteData';
 import { useDesktopServices } from './hooks/useDesktopServices';
 import Header from './components/Header';
@@ -14,35 +15,65 @@ export default function App() {
         db, dbReady, tasks, noteTitle, noteColor, viewMode, markdownText, alwaysOnTop, serviceStatus,
         addTask, toggleTask, clearCompleted, changeTheme, updateNoteTitle, toggleViewMode, updateMarkdown,
         toggleAlwaysOnTop, resetDatabase, handleServiceAction, deleteTaskGlobal, renameTaskGlobal, exportSingleTask,
-        saveToLocalStorage, refreshUiData
+        exportSingleWidget, saveToLocalStorage, refreshUiData, windowId, allWidgets, renameWidget, changeWidgetTheme,
+        deleteWidget, focusWidget, allFolders, createFolder, renameFolder, deleteFolder, createWidgetInFolder, triggerRefresh
     } = useSqliteData();
 
     // 2. Hardware Bounds Tracking & Backup Handling File Hooks
     const {
         settingsOpen, setSettingsOpen, triggerJsonExport, triggerJsonImport, ipcRenderer
-    } = useDesktopServices(db, saveToLocalStorage, refreshUiData);
+    } = useDesktopServices(db, saveToLocalStorage, refreshUiData, windowId);
+
+    const [isFocused, setIsFocused] = useState(true);
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        const handleFocus = () => setIsFocused(true);
+        const handleBlur = () => setIsFocused(false);
+
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('blur', handleBlur);
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('blur', handleBlur);
+        };
+    }, []);
+
+    // Expand/contract window automatically when settings open
+    useEffect(() => {
+        if (ipcRenderer) {
+            ipcRenderer.send('resize-to-settings', settingsOpen);
+        }
+    }, [settingsOpen, ipcRenderer]);
 
     // 3. Helper Method to Safely Append Markdown Text Layout Symbols
     const handleInsertMarkup = (syntax) => {
         updateMarkdown((markdownText || "") + syntax);
     };
 
+    // Enhanced shadow and scale effects on focus and hover
+    const isShadowActive = isFocused || isHovered;
+    const shadowClass = isShadowActive
+        ? "shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-black/15 scale-[0.99] border-black/20"
+        : "shadow-[0_4px_12px_rgba(0,0,0,0.15)] ring-1 ring-black/5 scale-100 border-black/10";
+
     return (
-        <div className="w-full h-screen bg-transparent font-sans antialiased relative selection:bg-slate-800/10">
+        // The outermost parent container must take up 100% of the screen width and height
+        <div
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="w-full h-screen p-1.5 bg-transparent font-sans antialiased relative transition-all duration-300"
+        >
+            <div className={`w-full h-full border rounded-2xl flex flex-col overflow-hidden transition-all duration-300 ${noteColor} ${shadowClass}`}>
 
-            {/* THE NOTE CARD WIDGET FRAME */}
-            <div className={`
-            w-full h-full 
-            border border-black/10 
-            rounded-2xl 
-            shadow-2xl 
-            flex flex-col 
-            overflow-hidden 
-            transition-all duration-300 
-            ${noteColor}  {/* 👈 Pass the full string without stripping, to include your new .glass-effect style rules */}
-        `}>
-
-                <Header title={noteTitle} noteColor={noteColor} ipcRenderer={ipcRenderer} onUpdateTitle={updateNoteTitle} />
+                <Header
+                    title={noteTitle}
+                    noteColor={noteColor}
+                    ipcRenderer={ipcRenderer}
+                    onUpdateTitle={updateNoteTitle}
+                    alwaysOnTop={alwaysOnTop}
+                    onToggleAlwaysOnTop={toggleAlwaysOnTop}
+                />
 
                 {/* Primary Content Base Board Container Workspace Frame */}
                 <div className="flex-1 p-4 flex flex-col overflow-hidden relative">
@@ -66,6 +97,23 @@ export default function App() {
                         onDeleteTaskGlobal={deleteTaskGlobal}
                         onRenameTaskGlobal={renameTaskGlobal}
                         onExportSingleTask={exportSingleTask}
+                        onExportWidget={exportSingleWidget}
+                        allWidgets={allWidgets}
+                        currentWidgetId={windowId}
+                        onRenameWidget={renameWidget}
+                        onChangeWidgetTheme={changeWidgetTheme}
+                        onDeleteWidget={deleteWidget}
+                        onFocusWidget={focusWidget}
+                        onCreateWidget={() => ipcRenderer ? ipcRenderer.send('create-note') : alert("Electron only.")}
+                        
+                        // Folders & Database Sharing Props
+                        allFolders={allFolders}
+                        onCreateFolder={createFolder}
+                        onRenameFolder={renameFolder}
+                        onDeleteFolder={deleteFolder}
+                        onCreateWidgetInFolder={createWidgetInFolder}
+                        db={db}
+                        onTriggerRefresh={triggerRefresh}
                     />
 
                     {!dbReady ? (
@@ -78,7 +126,7 @@ export default function App() {
                             {viewMode === "tasks" ? (
                                 <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-100">
                                     <TaskForm onAddTask={addTask} />
-                                    <TaskList tasks={tasks} onToggleTask={toggleTask} />
+                                    <TaskList tasks={tasks} onToggleTask={toggleTask} onDeleteTask={deleteTaskGlobal} />
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-100">

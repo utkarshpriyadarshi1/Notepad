@@ -26,17 +26,57 @@ export function useAdminActions(db, ipcRenderer, triggerRefresh) {
 
     const deleteTaskGlobal = (id) => {
         if (!db) return;
-        db.run("DELETE FROM tasks WHERE id = ?", [id]);
+        db.run("DELETE FROM task_items WHERE item_uuid = ?", [id]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
 
     const renameTaskGlobal = (id, newText) => {
         if (!db || !newText.trim()) return;
-        db.run("UPDATE tasks SET task_text = ? WHERE id = ?", [newText.trim(), id]);
+        db.run("UPDATE task_items SET item_text_payload = ?, updated_at = CURRENT_TIMESTAMP WHERE item_uuid = ?", [newText.trim(), id]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
 
-    return { executeRawInsert, executeRawUpdate, executeRawDelete, deleteTaskGlobal, renameTaskGlobal };
+    const renameWidget = (uuid, newTitle) => {
+        if (!db || !newTitle.trim()) return;
+        db.run("UPDATE sticky_widgets SET widget_title = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [newTitle.trim(), uuid]);
+        persistDatabaseToDisk(ipcRenderer, db);
+        triggerRefresh();
+    };
+
+    const changeWidgetTheme = (uuid, themeName) => {
+        if (!db) return;
+        db.run("UPDATE sticky_widgets SET widget_theme_preset = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [themeName, uuid]);
+        persistDatabaseToDisk(ipcRenderer, db);
+        triggerRefresh();
+    };
+
+    const deleteWidget = (uuid) => {
+        if (!db) return;
+        db.run("DELETE FROM sticky_widgets WHERE widget_uuid = ?", [uuid]);
+        persistDatabaseToDisk(ipcRenderer, db);
+        if (ipcRenderer) {
+            ipcRenderer.send('delete-widget-window', uuid);
+        }
+        triggerRefresh();
+    };
+
+    const focusWidget = (uuid) => {
+        if (ipcRenderer) {
+            ipcRenderer.send('focus-widget-window', uuid);
+        }
+    };
+
+    return {
+        executeRawInsert,
+        executeRawUpdate,
+        executeRawDelete,
+        deleteTaskGlobal,
+        renameTaskGlobal,
+        renameWidget,
+        changeWidgetTheme,
+        deleteWidget,
+        focusWidget
+    };
 }

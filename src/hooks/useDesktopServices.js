@@ -3,7 +3,7 @@ import {useEffect, useState} from 'react';
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 
-export function useDesktopServices(db, saveToLocalStorage, refreshUiData) {
+export function useDesktopServices(db, saveToLocalStorage, refreshUiData, windowId) {
     const [settingsOpen, setSettingsOpen] = useState(false);
 
     // Bounds Listener Configuration Setup
@@ -20,23 +20,28 @@ export function useDesktopServices(db, saveToLocalStorage, refreshUiData) {
 
     const triggerJsonExport = () => {
         if (!db) return;
-        const notesRes = db.exec("SELECT * FROM sticky_meta");
-        const tasksRes = db.exec("SELECT * FROM tasks");
+        try {
+            const widgetsRes = db.exec("SELECT * FROM sticky_widgets");
+            const tasksRes = db.exec("SELECT * FROM task_items");
 
-        const bundle = {
-            app: "Electron Sticky Note Widget",
-            exportedAt: new Date().toISOString(),
-            meta: notesRes.length > 0 ? notesRes.values : [],
-            tasks: tasksRes.length > 0 ? tasksRes.values : []
-        };
+            const bundle = {
+                app: "Electron Sticky Note Widget",
+                exportedAt: new Date().toISOString(),
+                widgets: widgetsRes.length > 0 && widgetsRes[0].values ? widgetsRes[0].values : [],
+                tasks: tasksRes.length > 0 && tasksRes[0].values ? tasksRes[0].values : []
+            };
 
-        const dataUri = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundle, null, 2));
-        const anchor = document.createElement('a');
-        anchor.setAttribute("href", dataUri);
-        anchor.setAttribute("download", `widget_backup_${Date.now()}.json`);
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
+            const dataUri = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundle, null, 2));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataUri);
+            anchor.setAttribute("download", `widget_backup_${Date.now()}.json`);
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+        } catch (err) {
+            console.error("Failed to export JSON backup:", err);
+            alert("Failed to export backup data.");
+        }
     };
 
     const triggerJsonImport = (event) => {
@@ -45,13 +50,24 @@ export function useDesktopServices(db, saveToLocalStorage, refreshUiData) {
             try {
                 const payload = JSON.parse(e.target.result);
                 if (!db) return;
-                db.run("DELETE FROM tasks; DELETE FROM sticky_meta;");
-                if (payload.meta) payload.meta.forEach(row => db.run("INSERT INTO sticky_meta VALUES (?, ?)", row));
-                if (payload.tasks) payload.tasks.forEach(row => db.run("INSERT INTO tasks VALUES (?, ?, ?)", row));
+                db.run("DELETE FROM task_items; DELETE FROM sticky_widgets;");
+                if (payload.widgets) {
+                    payload.widgets.forEach(row => {
+                        const placeholders = row.map(() => '?').join(', ');
+                        db.run(`INSERT INTO sticky_widgets VALUES (${placeholders})`, row);
+                    });
+                }
+                if (payload.tasks) {
+                    payload.tasks.forEach(row => {
+                        const placeholders = row.map(() => '?').join(', ');
+                        db.run(`INSERT INTO task_items VALUES (${placeholders})`, row);
+                    });
+                }
                 saveToLocalStorage(db);
-                refreshUiData(db);
+                refreshUiData(db, windowId);
                 alert("Backup data loaded successfully!");
             } catch (err) {
+                console.error("Failed to import JSON backup:", err);
                 alert("Failed to parse JSON backup.");
             }
         };

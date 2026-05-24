@@ -1,30 +1,78 @@
 import {useState} from 'react';
 import TabNavigation from './settings/TabNavigation';
 import PreferencesTab from './settings/PreferencesTab';
-import DataHubTab from './settings/DataHubTab';
+import WidgetTab from './settings/WidgetTab';
 
 export default function SettingsPanel({
-                                          isOpen,
-                                          onClose,
-                                          appName,
-                                          noteTitle,
-                                          onUpdateTitle,
-                                          alwaysOnTop,
-                                          onToggleAlwaysOnTop,
-                                          onResetDatabase,
-                                          tasks,
-                                          onToggleTask,
-                                          onExport,
-                                          onImport,
-                                          serviceStatus,
-                                          onServiceAction,
-                                          onDeleteTaskGlobal,
-                                          onRenameTaskGlobal,
-                                          onExportSingleTask
-                                      }) {
+                                           isOpen,
+                                           onClose,
+                                           appName,
+                                           onResetDatabase,
+                                           onExport,
+                                           onImport,
+                                           serviceStatus,
+                                           onServiceAction,
+                                           onExportWidget,
+                                           
+                                           // Widget Props
+                                           allWidgets,
+                                           currentWidgetId,
+                                           onRenameWidget,
+                                           onChangeWidgetTheme,
+                                           onDeleteWidget,
+                                           onFocusWidget,
+                                           onCreateWidget,
+
+                                           // Folders & DB Props
+                                           allFolders,
+                                           onCreateFolder,
+                                           onRenameFolder,
+                                           onDeleteFolder,
+                                           onCreateWidgetInFolder,
+                                           db,
+                                           onTriggerRefresh
+                                       }) {
     const [activeTab, setActiveTab] = useState("config");
 
     if (!isOpen) return null;
+
+    const renderActiveTab = () => {
+        switch (activeTab) {
+            case "config":
+                return (
+                    <PreferencesTab
+                        onExport={onExport}
+                        onImport={onImport}
+                        onResetDatabase={onResetDatabase}
+                        serviceStatus={serviceStatus}
+                        onServiceAction={onServiceAction}
+                    />
+                );
+            case "widgets":
+                return (
+                    <WidgetTab
+                        allWidgets={allWidgets}
+                        currentWidgetId={currentWidgetId}
+                        onRenameWidget={onRenameWidget}
+                        onChangeWidgetTheme={onChangeWidgetTheme}
+                        onDeleteWidget={onDeleteWidget}
+                        onFocusWidget={onFocusWidget}
+                        onCreateWidget={onCreateWidget}
+                        onExportWidget={onExportWidget}
+
+                        allFolders={allFolders}
+                        onCreateFolder={onCreateFolder}
+                        onRenameFolder={onRenameFolder}
+                        onDeleteFolder={onDeleteFolder}
+                        onCreateWidgetInFolder={onCreateWidgetInFolder}
+                        db={db}
+                        onTriggerRefresh={onTriggerRefresh}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
 
     return (<div style={{WebkitAppRegion: 'no-drag'}}
                  className="absolute inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-3 z-50 animate-in fade-in duration-150">
@@ -32,19 +80,15 @@ export default function SettingsPanel({
             className="w-[96%] h-[94%] bg-white rounded-2xl shadow-2xl border border-black/10 flex flex-col overflow-hidden text-slate-800">
 
             {/* 1. Sub-Header Navigation Tabs Row */}
-            <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} taskCount={tasks.length}
-                           onClose={onClose}/>
+            <TabNavigation
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                widgetCount={allWidgets.length}
+                onClose={onClose}
+            />
 
             {/* 2. Primary Layout Workspace Routing Panel Router */}
-            {activeTab === "config" ? (<PreferencesTab
-                noteTitle={noteTitle} onUpdateTitle={onUpdateTitle} alwaysOnTop={alwaysOnTop}
-                onToggleAlwaysOnTop={onToggleAlwaysOnTop}
-                onExport={onExport} onImport={onImport} onResetDatabase={onResetDatabase}
-                serviceStatus={serviceStatus} onServiceAction={onServiceAction}
-            />) : (<DataHubTab
-                tasks={tasks} onToggleTask={onToggleTask} onDeleteTask={onDeleteTaskGlobal}
-                onRenameTask={onRenameTaskGlobal} onExportTask={onExportSingleTask}
-            />)}
+            {renderActiveTab()}
 
             {/* 3. Bottom Footer */}
             <div

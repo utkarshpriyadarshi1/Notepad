@@ -16,10 +16,13 @@ export default function MarkdownEditor({ text, onUpdate }) {
                 <textarea
                     value={text}
                     onChange={(e) => onUpdate(e.target.value)}
-                    onBlur={() => setIsEditing(false)}
+                    onBlur={() => {
+                        setIsEditing(false);
+                        onUpdate(text, true);
+                    }}
                     placeholder="Write markup configurations here..."
                     autoFocus
-                    className="w-full h-full text-xs font-medium bg-transparent focus:outline-none resize-none text-slate-800 font-mono"
+                    className="w-full h-full text-xs font-medium bg-transparent focus:outline-none resize-none text-slate-800 font-mono text-left"
                 />
             </div>
         );
@@ -29,7 +32,7 @@ export default function MarkdownEditor({ text, onUpdate }) {
         <div className="flex-1 flex flex-col overflow-hidden no-drag bg-white/20 p-2.5 rounded-xl border border-black/5 mb-2">
             <div
                 onClick={() => setIsEditing(true)}
-                className="w-full h-full text-xs overflow-y-auto cursor-text text-slate-900 prose prose-sm select-text"
+                className="w-full h-full text-xs overflow-y-auto cursor-text text-slate-900 prose prose-sm select-text text-left"
                 dangerouslySetInnerHTML={{ __html: compiledHtml }}
             />
         </div>

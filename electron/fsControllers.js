@@ -1,7 +1,7 @@
 /* eslint-env node */
 const fs = require('fs');
 const path = require('path');
-const config = require('../app.config');
+const config = require('../app.config.json');
 
 function setupFilesystemHandlers(ipcMain, app) {
     const userDataPath = app.getPath('userData');

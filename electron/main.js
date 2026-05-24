@@ -1,71 +1,33 @@
 /* eslint-env node */
 const {app, BrowserWindow, Tray, Menu, ipcMain, screen} = require('electron');
 const path = require('path');
-const config = require('../app.config');
-
+const fs = require('fs');
+const config = require('../app.config.json');
 // 1. Import local sub-system brain modules
 const {setupFilesystemHandlers} = require('./fsControllers');
 const {setupServiceHandlers, getWorkerStatus} = require('./serviceController');
 const {writeLog, setupLoggerIPC} = require('./logger'); // 👈 Import Logging system
 
 let tray = null;
-app.disableHardwareAcceleration();  // Forces alpha layer glass transparency rendering
-
-function createWidgetWindow() {
-    writeLog(app, 'INFO', 'Window_Lifecycle', 'Initializing fresh frameless browser instance...');
-
-    // ... keep your default windowBounds coordinate calculations exactly as before ...
-    let windowBounds = { width: config.windowDefaults.width, height: config.windowDefaults.height, x: config.windowDefaults.x, y: config.windowDefaults.y };
-    try {
-        const storedCoords = localStorage.getItem('widget_last_coordinates');
-        if (storedCoords) windowBounds = JSON.parse(storedCoords);
-    } catch { /* Suppress fast parse checks */ }
-
-    const win = new BrowserWindow({
-        width: windowBounds.width, height: windowBounds.height, x: windowBounds.x, y: windowBounds.y,
-        frame: false, transparent: true, hasShadow: false, alwaysOnTop: true,
-        resizable: config.windowDefaults?.resizable ?? true,
-        icon: path.resolve(config.icons.taskbarIcon), title: config.appName,
-        webPreferences: { nodeIntegration: true, contextIsolation: false },
-    });
-
-    // Capture explicit frontend renderer window container crash configurations
-    win.webContents.on('render-process-gone', (event, details) => {
-        writeLog(app, 'FATAL', 'Renderer_Crash', `UI Layer vanished. Reason: ${details.reason}, Exit Code: ${details.exitCode}`);
-    });
-
-    win.webContents.on('unresponsive', () => {
-        writeLog(app, 'WARNING', 'Renderer_Freeze', 'UI Layer context entered an unresponsive state loop.');
-    });
-
-    const startUrl = process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5173' : `file://${path.join(__dirname, '../dist/index.html')}`;
-    win.loadURL(startUrl);
-
-    const saveBoundsDebounce = () => win.webContents.send('window-moved', win.getBounds());
-    win.on('move', saveBoundsDebounce);
-    win.on('resize', saveBoundsDebounce);
-    win.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); win.hide(); } });
-    return win;
-}
+// app.disableHardwareAcceleration();  // Forces alpha layer glass transparency rendering
 
 function rebuildTrayMenu() {
     if (!tray) return;
     const isRunning = getWorkerStatus();
 
-    tray.setContextMenu(Menu.buildFromTemplate([
-        {label: `New ${config.appName} Note`, click: () => createWidgetWindow()},
-        {type: 'separator'},
-        {label: 'Show All Notes', click: () => BrowserWindow.getAllWindows().forEach(w => w.show())},
-        {label: 'Hide All Notes', click: () => BrowserWindow.getAllWindows().forEach(w => w.hide())},
+    tray.setContextMenu(Menu.buildFromTemplate([{
+        label: `New ${config.appName} Note`,
+        click: () => createWidgetWindow()
+    }, {type: 'separator'}, {
+        label: 'Show All Notes',
+        click: () => BrowserWindow.getAllWindows().forEach(w => w.show())
+    }, {label: 'Hide All Notes', click: () => BrowserWindow.getAllWindows().forEach(w => w.hide())},
 
-        {type: 'separator'},
-        {
+        {type: 'separator'}, {
             label: '🎯 Force UI Reload Refresh',
             click: () => BrowserWindow.getAllWindows().forEach(w => w.webContents.reload())
-        },
-        {
-            label: '🎯 Reset Notes Position (Center)',
-            click: () => {
+        }, {
+            label: '🎯 Reset Notes Position (Center)', click: () => {
                 const windows = BrowserWindow.getAllWindows();
                 const primaryDisplay = screen.getPrimaryDisplay();
                 const {width, height} = primaryDisplay.workAreaSize;
@@ -79,26 +41,18 @@ function rebuildTrayMenu() {
                     // Offset cascading windows slightly if multiple windows are being reset at once
                     const offset = index * 25;
                     win.setBounds({
-                        x: centerX + offset,
-                        y: centerY + offset,
-                        width: defaultWidth,
-                        height: defaultHeight
+                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
                     });
 
                     // Force-notify the specific React window hook layer to log the new position parameters
                     win.webContents.send('window-moved', {
-                        x: centerX + offset,
-                        y: centerY + offset,
-                        width: defaultWidth,
-                        height: defaultHeight
+                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
                     });
                 });
                 console.log("⚡ [Rescue Operations] All active windows re-centered via taskbar tray context menu.");
             }
-        },
-        {
-            label: '🎯 Reset Notes Size',
-            click: () => {
+        }, {
+            label: '🎯 Reset Notes Size', click: () => {
                 const windows = BrowserWindow.getAllWindows();
                 const primaryDisplay = screen.getPrimaryDisplay();
                 const {width, height} = primaryDisplay.workAreaSize;
@@ -112,51 +66,37 @@ function rebuildTrayMenu() {
                     // Offset cascading windows slightly if multiple windows are being reset at once
                     const offset = index * 25;
                     win.setBounds({
-                        x: centerX + offset,
-                        y: centerY + offset,
-                        width: defaultWidth,
-                        height: defaultHeight
+                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
                     });
 
                     // Force-notify the specific React window hook layer to log the new position parameters
                     win.webContents.send('window-moved', {
-                        x: centerX + offset,
-                        y: centerY + offset,
-                        width: defaultWidth,
-                        height: defaultHeight
+                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
                     });
                 });
                 console.log("⚡ [Rescue Operations] All active windows re-centered via taskbar tray context menu.");
             }
-        },
-        {type: 'separator'},
-        {label: `Core Engine Status: [${isRunning ? 'RUNNING' : 'STOPPED'}]`, enabled: false},
-        {
+        }, {type: 'separator'}, {label: `Core Engine Status: [${isRunning ? 'RUNNING' : 'STOPPED'}]`, enabled: false}, {
             label: 'Start Task Engine Service', enabled: !isRunning, click: () => {
                 ipcMain.emit('control-task-service', null, 'start');
                 rebuildTrayMenu();
             }
-        },
-        {
+        }, {
             label: 'Stop Task Engine Service', enabled: isRunning, click: () => {
                 ipcMain.emit('control-task-service', null, 'stop');
                 rebuildTrayMenu();
             }
-        },
-        {
+        }, {
             label: 'Restart Task Engine Service', click: () => {
                 ipcMain.emit('control-task-service', null, 'restart');
                 rebuildTrayMenu();
             }
-        },
-        {type: 'separator'},
-        {
+        }, {type: 'separator'}, {
             label: `Quit Application Process`, click: () => {
                 app.isQuitting = true;
                 app.quit();
             }
-        }
-    ]));
+        }]));
 }
 
 app.whenReady().then(() => {
@@ -166,6 +106,11 @@ app.whenReady().then(() => {
     setupLoggerIPC(ipcMain, app); // 👈 Connect log channels
     setupFilesystemHandlers(ipcMain, app);
     setupServiceHandlers(ipcMain);
+
+    ipcMain.handle('get-window-id', (event) => {
+        const w = BrowserWindow.fromWebContents(event.sender);
+        return w ? w.widgetId : 'widget_1';
+    });
 
     writeLog(app, 'INFO', 'App_Lifecycle', `${config.appName} subsystem boots completely offline.`);
 
@@ -181,9 +126,119 @@ app.whenReady().then(() => {
     });
 });
 
-app.on('window-all-closed', () => { if (process.platform !== 'darwin' && app.isQuitting) app.quit(); });
-ipcMain.on('create-note', () => { createWidgetWindow(); });
-ipcMain.on('set-always-on-top', (ev, pin) => { const w = BrowserWindow.fromWebContents(ev.sender); if (w) w.setAlwaysOnTop(pin); });
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin' && app.isQuitting) app.quit();
+});
+ipcMain.on('create-note', () => {
+    createWidgetWindow();
+});
+ipcMain.on('set-always-on-top', (ev, pin) => {
+    const w = BrowserWindow.fromWebContents(ev.sender);
+    if (w) {
+        w.setAlwaysOnTop(pin);
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('window-state-updated');
+        });
+    }
+});
+
+ipcMain.on('broadcast-db-update', (event) => {
+    BrowserWindow.getAllWindows().forEach(w => {
+        if (w.webContents !== event.sender) {
+            w.webContents.send('db-updated');
+        }
+    });
+});
+
+ipcMain.on('delete-widget-window', (event, widgetId) => {
+    BrowserWindow.getAllWindows().forEach(w => {
+        if (w.widgetId === widgetId) {
+            w.destroy();
+        }
+    });
+    BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('window-state-updated');
+    });
+});
+
+ipcMain.on('focus-widget-window', (event, widgetId) => {
+    let found = false;
+    BrowserWindow.getAllWindows().forEach(w => {
+        if (w.widgetId === widgetId) {
+            w.show();
+            w.focus();
+            found = true;
+        }
+    });
+    if (!found) {
+        createWidgetWindow(widgetId);
+    }
+    BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('window-state-updated');
+    });
+});
+
+ipcMain.on('hide-widget-window', (event, widgetId) => {
+    BrowserWindow.getAllWindows().forEach(w => {
+        if (w.widgetId === widgetId) {
+            w.hide();
+        }
+    });
+    BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('window-state-updated');
+    });
+});
+
+ipcMain.on('set-widget-always-on-top', (event, widgetId, pin) => {
+    BrowserWindow.getAllWindows().forEach(w => {
+        if (w.widgetId === widgetId) {
+            w.setAlwaysOnTop(pin);
+        }
+    });
+    BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('window-state-updated');
+    });
+});
+
+ipcMain.on('drag-window', (event, dx, dy) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (w) {
+        const bounds = w.getBounds();
+        w.setBounds({
+            x: Math.round(bounds.x + dx),
+            y: Math.round(bounds.y + dy),
+            width: bounds.width,
+            height: bounds.height
+        });
+    }
+});
+
+ipcMain.on('resize-to-settings', (event, isOpen) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (w) {
+        if (isOpen) {
+            w.setResizable(true);
+            w.setSize(920, 550);
+            w.center();
+        } else {
+            w.setSize(350, 420);
+            w.setResizable(config.windowDefaults?.resizable ?? true);
+        }
+    }
+});
+
+ipcMain.handle('get-windows-state', () => {
+    const states = {};
+    BrowserWindow.getAllWindows().forEach(w => {
+        if (w.widgetId) {
+            states[w.widgetId] = {
+                visible: w.isVisible(),
+                pinned: w.isAlwaysOnTop()
+            };
+        }
+    });
+    return states;
+});
 
 process.on('uncaughtException', (error) => {
     writeLog(app, 'CRITICAL', 'Main_Process_Global', error.message, error.stack);
@@ -200,10 +255,66 @@ process.on('unhandledRejection', (reason, promise) => {
 // ============================================================================
 // PRODUCTION ENGINE PERFORMANCE TUNING SWITCHES
 // ============================================================================
-app.disableHardwareAcceleration(); // Forces software rendering (cuts memory by up to 40MB per note)
+// app.disableHardwareAcceleration(); // Forces software rendering (cuts memory by up to 40MB per note)
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache'); // Stops unnecessary shader compiling cache
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=128'); // Limits V8 garbage collector to 128MB max RAM
 
 // Force system timers to wake up less frequently when hidden
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
+
+
+// 1. RE-ENABLE HARDWARE ACCELERATION (Disabling it causes blank/hidden windows on newer Windows 11 updates)
+// Remove or comment out: app.disableHardwareAcceleration();
+
+function createWidgetWindow(targetWidgetId = null) {
+    // 2. FORCE EXPLICIT SAFE INITIAL COORDINATES
+    const defaultWidth = config.windowDefaults?.width || 350;
+    const defaultHeight = config.windowDefaults?.height || 420;
+
+    // Centers the initial widget window directly on screen safely
+    const win = new BrowserWindow({
+        width: defaultWidth,
+        height: defaultHeight,
+        x: 150, // Force absolute safe X anchor placement
+        y: 150, // Force absolute safe Y anchor placement
+        frame: false,
+        transparent: true,
+        hasShadow: true, // Re-enable window shadows to allow frame drawing initialization
+        alwaysOnTop: true,
+        resizable: config.windowDefaults?.resizable ?? true,
+        icon: path.resolve(config.icons.taskbarIcon),
+        title: config.appName,
+        webPreferences: {
+            nodeIntegration: true, contextIsolation: false,
+        },
+    });
+
+    win.widgetId = targetWidgetId || (BrowserWindow.getAllWindows().filter(w => w !== win).length === 0 ? 'widget_1' : `widget_${Date.now()}`);
+
+    // 3. SHOW WINDOW INSTANTLY WHEN READY TO PREVENT BLANK RENDERS
+    win.once('ready-to-show', () => {
+        win.show();
+        win.focus();
+    });
+
+    const startUrl = process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5173' : `file://${path.join(__dirname, '../dist/index.html')}`;
+
+    win.loadURL(startUrl);
+
+    win.on('move', () => {
+        win.webContents.send('window-moved', win.getBounds());
+    });
+
+    win.on('close', (e) => {
+        if (!app.isQuitting) {
+            e.preventDefault();
+            win.hide();
+            BrowserWindow.getAllWindows().forEach(w => {
+                w.webContents.send('window-state-updated');
+            });
+        }
+    });
+
+    return win;
+}

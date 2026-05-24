@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "concurrently \"vite\" \"wait-on -t 5000 http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
+    "dev": "concurrently \"vite\" \"wait-on -t 5000 http://127.0.0.1:5173 && cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
     "package": "npm run build && electron-builder"
   },
@@ -36,7 +36,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "app.config.js",
+      "app.config.json",
       "public/sql-wasm.wasm"
     ],
     "extraResources": [
