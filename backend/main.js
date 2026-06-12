@@ -298,7 +298,7 @@ function createWidgetWindow(targetWidgetId = null) {
         win.focus();
     });
 
-    const startUrl = process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5173' : `file://${path.join(__dirname, '../dist/index.html')}`;
+    const startUrl = process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5173' : `file://${path.join(__dirname, '../frontend/dist/index.html')}`;
 
     win.loadURL(startUrl);
 

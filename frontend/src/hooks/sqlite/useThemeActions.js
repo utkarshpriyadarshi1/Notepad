@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { persistDatabaseToDisk } from './dbController';
-import config from "../../../app.config.json";
+import config from "../../../../app.config.json";
 
 export function useThemeActions(db, ipcRenderer, triggerRefresh, colorThemes, windowId) {
     const [noteTitle, setNoteTitle] = useState(config.defaultTitle);

@@ -4,7 +4,7 @@ import {useTaskActions} from './sqlite/useTaskActions';
 import {useThemeActions} from './sqlite/useThemeActions';
 import {useMarkdownActions} from './sqlite/useMarkdownActions';
 import {useAdminActions} from './sqlite/useAdminActions';
-import config from "../../app.config.json";
+import config from "../../../app.config.json";
 
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;

@@ -82,7 +82,7 @@ export default function App() {
                     <SettingsPanel
                         isOpen={settingsOpen}
                         onClose={() => setSettingsOpen(false)}
-                        appName="StickyFlow Desktop Core"
+                        appName="e-Smritipatra Desktop Core"
                         noteTitle={noteTitle}
                         onUpdateTitle={updateNoteTitle}
                         alwaysOnTop={alwaysOnTop}

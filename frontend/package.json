@@ -1,11 +1,11 @@
 {
-  "name": "stickyflow-desktop",
+  "name": "e-smritipatra-desktop",
   "version": "1.0.0",
   "description": "Offline sticky notes and task management widgets",
-  "main": "electron/main.js",
+  "main": "backend/main.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "concurrently \"vite\" \"wait-on -t 5000 http://127.0.0.1:5173 && cross-env NODE_ENV=development electron .\"",
+    "dev": "concurrently \"vite\" \"wait-on -t 5000 http://127.0.0.1:5173 && cross-env NODE_ENV=development electron ../backend/main.js\"",
     "build": "vite build",
     "package": "npm run build && electron-builder"
   },
@@ -31,17 +31,27 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.stickyflow.taskcore",
-    "productName": "StickyFlow Desktop",
+    "appId": "com.e-smritipatra.desktop",
+    "productName": "e-Smritipatra",
     "files": [
       "dist/**/*",
-      "electron/**/*",
-      "app.config.json",
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!assets/**/*"
+        ]
+      },
+      {
+        "from": "../app.config.json",
+        "to": "app.config.json"
+      },
       "public/sql-wasm.wasm"
     ],
     "extraResources": [
       {
-        "from": "electron/assets",
+        "from": "../backend/assets",
         "to": "assets",
         "filter": [
           "**/*"
@@ -50,7 +60,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "electron/assets/app-icon.ico"
+      "icon": "../backend/assets/app-icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -60,7 +70,7 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "electron/assets/taskbar-icon.png",
+      "icon": "../backend/assets/taskbar-icon.png",
       "category": "public.app-category.productivity"
     }
   }
