@@ -1,8 +1,31 @@
 import {useEffect, useState} from 'react';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCheck, faPlus, faXmark, faThumbtack, faGripVertical} from '@fortawesome/free-solid-svg-icons';
+import {
+    faCheck,
+    faPlus,
+    faXmark,
+    faThumbtack,
+    faGripVertical,
+    faSun,
+    faMoon,
+    faTerminal,
+    faQuestionCircle,
+    faGear
+} from '@fortawesome/free-solid-svg-icons';
 
-export default function Header({title, noteColor, ipcRenderer, onUpdateTitle, alwaysOnTop, onToggleAlwaysOnTop}) {
+export default function Header({
+                                   title,
+                                   noteColor,
+                                   ipcRenderer,
+                                   onUpdateTitle,
+                                   alwaysOnTop,
+                                   onToggleAlwaysOnTop,
+                                   onToggleSettings,
+                                   onToggleLogs,
+                                   onToggleHelp,
+                                   isDarkMode,
+                                   onToggleDarkMode
+                               }) {
     const [isEditing, setIsEditing] = useState(false);
     const [inputValue, setInputValue] = useState(title);
 
@@ -64,9 +87,6 @@ export default function Header({title, noteColor, ipcRenderer, onUpdateTitle, al
                     className="group relative flex items-center mr-2 cursor-grab active:cursor-grabbing text-slate-700/60 hover:text-slate-900 transition-colors p-1 flex-shrink-0"
                 >
                     <FontAwesomeIcon icon={faGripVertical} className="text-[11px]" />
-                    <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                        Drag Note
-                    </div>
                 </div>
 
                 {isEditing ? (<div className="flex items-center w-full gap-1.5">
@@ -80,15 +100,10 @@ export default function Header({title, noteColor, ipcRenderer, onUpdateTitle, al
                             maxLength={30}
                             className="w-full text-xs font-bold uppercase tracking-wider bg-white/50 border border-black/10 px-2 py-0.5 rounded focus:outline-none focus:bg-white text-slate-800"
                         />
-                        <div className="group relative flex items-center">
-                            <button onClick={handleSave}
-                                    className="text-[10px] text-slate-700 hover:text-black p-1 cursor-pointer">
-                                <FontAwesomeIcon icon={faCheck}/>
-                            </button>
-                            <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                                Save Title
-                            </div>
-                        </div>
+                        <button onClick={handleSave}
+                                className="text-[10px] text-slate-700 hover:text-black p-1 cursor-pointer">
+                            <FontAwesomeIcon icon={faCheck}/>
+                        </button>
                     </div>) : (<div className="group relative flex items-center min-w-0">
                         <span
                             onClick={() => setIsEditing(true)}
@@ -96,51 +111,61 @@ export default function Header({title, noteColor, ipcRenderer, onUpdateTitle, al
                         >
                             {title}
                         </span>
-                        <div className="absolute top-full mt-1.5 left-0 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                            Rename Note
-                        </div>
                     </div>)}
             </div>
 
             {/* Native Control Buttons */}
-            <div style={{WebkitAppRegion: 'no-drag'}} className="flex items-center gap-3 flex-shrink-0">
-                <div className="group relative flex items-center">
-                    <button
-                        onClick={onToggleAlwaysOnTop}
-                        className={`text-xs transition-all p-1 cursor-pointer ${
-                            alwaysOnTop ? 'opacity-100 text-slate-900 scale-110' : 'opacity-50 hover:opacity-85 text-slate-755'
-                        }`}
-                    >
-                        <FontAwesomeIcon icon={faThumbtack} className={alwaysOnTop ? "rotate-45" : ""} />
-                    </button>
-                    <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                        {alwaysOnTop ? "Unpin Note" : "Pin Note"}
-                    </div>
-                </div>
+            <div style={{WebkitAppRegion: 'no-drag'}} className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                    onClick={onToggleAlwaysOnTop}
+                    className={`text-xs transition-all p-1 cursor-pointer ${
+                        alwaysOnTop ? 'opacity-100 text-slate-900 scale-110' : 'opacity-50 hover:opacity-85 text-slate-700'
+                    }`}
+                >
+                    <FontAwesomeIcon icon={faThumbtack} className={alwaysOnTop ? "rotate-45" : ""} />
+                </button>
 
-                <div className="group relative flex items-center">
-                    <button
-                        onClick={() => ipcRenderer ? ipcRenderer.send('create-note') : alert("Electron only.")}
-                        className="text-xs opacity-75 hover:opacity-100 transition-opacity p-1 cursor-pointer"
-                    >
-                        <FontAwesomeIcon icon={faPlus}/>
-                    </button>
-                    <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                        New Note
-                    </div>
-                </div>
+                <button
+                    onClick={onToggleDarkMode}
+                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                >
+                    <FontAwesomeIcon icon={isDarkMode ? faSun : faMoon} />
+                </button>
 
-                <div className="group relative flex items-center">
-                    <button
-                        onClick={() => window.close()}
-                        className="text-xs opacity-75 hover:opacity-100 transition-opacity p-1 cursor-pointer"
-                    >
-                        <FontAwesomeIcon icon={faXmark}/>
-                    </button>
-                    <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                        Close Note
-                    </div>
-                </div>
+                <button
+                    onClick={onToggleLogs}
+                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                >
+                    <FontAwesomeIcon icon={faTerminal} />
+                </button>
+
+                <button
+                    onClick={onToggleHelp}
+                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                >
+                    <FontAwesomeIcon icon={faQuestionCircle} />
+                </button>
+
+                <button
+                    onClick={onToggleSettings}
+                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                >
+                    <FontAwesomeIcon icon={faGear} />
+                </button>
+
+                <button
+                    onClick={() => ipcRenderer ? ipcRenderer.send('create-note') : alert("Electron only.")}
+                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                >
+                    <FontAwesomeIcon icon={faPlus}/>
+                </button>
+
+                <button
+                    onClick={() => window.close()}
+                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                >
+                    <FontAwesomeIcon icon={faXmark}/>
+                </button>
             </div>
         </div>);
 }

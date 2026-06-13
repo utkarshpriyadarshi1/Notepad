@@ -1,5 +1,5 @@
 /* eslint-env node */
-const {app, BrowserWindow, Tray, Menu, ipcMain, screen} = require('electron');
+const {app, BrowserWindow, Tray, Menu, ipcMain, screen, session} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const config = require('../app.config.json');
@@ -110,6 +110,67 @@ app.whenReady().then(() => {
     ipcMain.handle('get-window-id', (event) => {
         const w = BrowserWindow.fromWebContents(event.sender);
         return w ? w.widgetId : 'widget_1';
+    });
+
+    ipcMain.handle('read-log-file', async () => {
+        try {
+            const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');
+            if (fs.existsSync(logFilePath)) {
+                const content = await fs.promises.readFile(logFilePath, 'utf8');
+                return content;
+            }
+            return '';
+        } catch (err) {
+            console.error("Failed to read log file:", err);
+            return 'Error reading log file.';
+        }
+    });
+
+    ipcMain.handle('get-cache-stats', async () => {
+        try {
+            const cacheSize = await session.defaultSession.getCacheSize();
+            const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');
+            let logSize = 0;
+            if (fs.existsSync(logFilePath)) {
+                logSize = fs.statSync(logFilePath).size;
+            }
+            const dbFilePath = path.join(app.getPath('userData'), config.dbFileName);
+            let dbSize = 0;
+            if (fs.existsSync(dbFilePath)) {
+                dbSize = fs.statSync(dbFilePath).size;
+            }
+            return {
+                webCache: cacheSize,
+                logFile: logSize,
+                dbFile: dbSize
+            };
+        } catch (err) {
+            console.error("Failed to get cache stats:", err);
+            return { webCache: 0, logFile: 0, dbFile: 0 };
+        }
+    });
+
+    ipcMain.handle('clear-app-cache', async (event, types) => {
+        try {
+            if (types.webCache) {
+                await session.defaultSession.clearCache();
+            }
+            if (types.logFile) {
+                const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');
+                if (fs.existsSync(logFilePath)) {
+                    await fs.promises.writeFile(logFilePath, '', 'utf8');
+                }
+            }
+            return true;
+        } catch (err) {
+            console.error("Failed to clear cache:", err);
+            return false;
+        }
+    });
+
+    ipcMain.on('open-external-link', (event, url) => {
+        const { shell } = require('electron');
+        shell.openExternal(url);
     });
 
     writeLog(app, 'INFO', 'App_Lifecycle', `${config.appName} subsystem boots completely offline.`);

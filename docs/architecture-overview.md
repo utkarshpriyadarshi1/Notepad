@@ -1,6 +1,6 @@
 # Architecture Overview
 
-StickyFlow Desktop is an offline desktop widget utility application. It is architected as a decoupled system containing two primary modules:
+Smritipatra Desktop is an offline desktop widget utility application. It is architected as a decoupled system containing two primary modules:
 
 ## 1. Backend Layer (Electron Main Process)
 The main process coordinates OS-level operations:

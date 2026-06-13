@@ -1,9 +1,9 @@
 import {useState} from 'react';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCheckDouble, faFileLines, faGear, faListCheck, faPalette} from '@fortawesome/free-solid-svg-icons';
+import {faCheckDouble, faFileLines, faListCheck, faPalette} from '@fortawesome/free-solid-svg-icons';
 
 export default function ActionBar({
-                                       onChangeTheme, onClearDone, hasTasks, viewMode, onToggleView, onOpenSettings
+                                       onChangeTheme, onClearDone, hasTasks, viewMode, onToggleView
                                    }) {
     const [showPalette, setShowPalette] = useState(false);
     const colors = ['glass', 'yellow', 'pink', 'blue', 'green'];
@@ -17,31 +17,19 @@ export default function ActionBar({
         <div className="flex items-center gap-2.5">
 
             {/* Mode Switcher Document/Checklist Button */}
-            <div className="group relative flex items-center">
-                <button
-                    type="button" onClick={onToggleView}
-                    className="p-1.5 rounded-full hover:bg-black/5 active:bg-black/10 transition-colors text-[13px] cursor-pointer text-slate-900 font-bold"
-                >
-                    <FontAwesomeIcon icon={viewMode === 'tasks' ? faFileLines : faListCheck}/>
-                </button>
-                <div className="absolute bottom-full mb-1.5 left-0 translate-x-0 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                    {viewMode === 'tasks' ? "Switch to Editor" : "Switch to Checklist"}
-                </div>
-            </div>
+            <button
+                type="button" onClick={onToggleView}
+                className="p-1.5 rounded-full hover:bg-black/5 active:bg-black/10 transition-colors text-[13px] cursor-pointer text-slate-900 font-bold"
+            >
+                <FontAwesomeIcon icon={viewMode === 'tasks' ? faFileLines : faListCheck}/>
+            </button>
 
             {/* Color Palette Picker Popover */}
             <div className="relative" onMouseEnter={() => setShowPalette(true)}
                  onMouseLeave={() => setShowPalette(false)}>
-                <div className="group relative flex items-center">
-                    <button type="button" className="p-1.5 rounded-full hover:bg-black/5 text-[13px] cursor-pointer">
-                        <FontAwesomeIcon icon={faPalette} className="opacity-75"/>
-                    </button>
-                    {!showPalette && (
-                        <div className="absolute bottom-full mb-1.5 left-0 translate-x-0 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                            Change Color
-                        </div>
-                    )}
-                </div>
+                <button type="button" className="p-1.5 rounded-full hover:bg-black/5 text-[13px] cursor-pointer">
+                    <FontAwesomeIcon icon={faPalette} className="opacity-75"/>
+                </button>
                 {showPalette && (
                     <div className="absolute bottom-full left-0 pb-1.5 z-50">
                         <div className="bg-white/95 backdrop-blur-md shadow-xl border border-black/10 rounded-full px-2 py-1.5 flex gap-1.5">
@@ -56,28 +44,11 @@ export default function ActionBar({
         {/* Right Action Trigger Buttons */}
         <div className="flex items-center gap-2.5">
             {viewMode === 'tasks' && hasTasks && (
-                <div className="group relative flex items-center">
-                    <button onClick={onClearDone}
-                                                                  className="px-2 py-1 bg-black/5 hover:bg-black/10 rounded-md text-[10px] font-bold cursor-pointer flex items-center gap-1 opacity-85">
-                        <FontAwesomeIcon icon={faCheckDouble}/> Clear Completed
-                    </button>
-                    <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                        Clear Completed Tasks
-                    </div>
-                </div>
-            )}
-
-            <div className="group relative flex items-center">
-                <button
-                    type="button" onClick={onOpenSettings}
-                    className="p-1.5 rounded-full hover:bg-black/5 active:bg-black/10 transition-colors text-[13px] cursor-pointer text-slate-600 hover:text-slate-900"
-                >
-                    <FontAwesomeIcon icon={faGear}/>
+                <button onClick={onClearDone}
+                        className="p-1.5 bg-black/5 hover:bg-black/10 rounded-full text-[13px] cursor-pointer flex items-center justify-center text-slate-900 font-bold">
+                    <FontAwesomeIcon icon={faCheckDouble}/>
                 </button>
-                <div className="absolute bottom-full mb-1.5 right-0 translate-x-0 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                    Preferences
-                </div>
-            </div>
+            )}
         </div>
     </div>);
 }

@@ -6,7 +6,7 @@ const config = require('../app.config.json');
 function writeLog(app, level, moduleName, message, stackTrace = '') {
     try {
         const userDataPath = app.getPath('userData');
-        const logFilePath = path.join(userDataPath, 'stickyflow_runtime.log');
+        const logFilePath = path.join(userDataPath, 'smritipatra_runtime.log');
 
         const timestamp = new Date().toISOString();
         const cleanMessage = typeof message === 'object' ? JSON.stringify(message) : message;
@@ -37,7 +37,7 @@ function setupLoggerIPC(ipcMain, app) {
     });
 
     ipcMain.handle('get-log-file-path', async () => {
-        return path.join(app.getPath('userData'), 'stickyflow_runtime.log');
+        return path.join(app.getPath('userData'), 'smritipatra_runtime.log');
     });
 }
 

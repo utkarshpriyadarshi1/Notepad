@@ -1,6 +1,6 @@
 # Database Schema
 
-StickyFlow Desktop stores information offline in SQLite. The schema contains the following entities:
+Smritipatra Desktop stores information offline in SQLite. The schema contains the following entities:
 
 ## 1. `sys_migrations`
 Stores database schema version history.

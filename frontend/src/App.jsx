@@ -8,6 +8,9 @@ import ActionBar from './components/ActionBar';
 import SettingsPanel from './components/SettingsPanel';
 import MarkdownToolbar from './components/MarkdownToolbar';
 import MarkdownEditor from './components/MarkdownEditor';
+import { translations } from './services/i18n';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTerminal, faXmark, faRotateRight, faQuestionCircle, faBug } from '@fortawesome/free-solid-svg-icons';
 
 export default function App() {
     // 1. Structural Database Lifecycle Core Hook Extraction
@@ -26,6 +29,45 @@ export default function App() {
 
     const [isFocused, setIsFocused] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
+
+    // Day/Night Dark Mode state
+    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('smritipatra_dark_mode') === 'true');
+
+    // Language state
+    const [lang, setLang] = useState(() => localStorage.getItem('smritipatra_lang') || 'en');
+
+    // Modals states
+    const [logsOpen, setLogsOpen] = useState(false);
+    const [logContent, setLogContent] = useState('');
+    const [helpOpen, setHelpOpen] = useState(false);
+
+    useEffect(() => {
+        localStorage.setItem('smritipatra_lang', lang);
+    }, [lang]);
+
+    useEffect(() => {
+        localStorage.setItem('smritipatra_dark_mode', isDarkMode);
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [isDarkMode]);
+
+    const t = (key) => translations[lang]?.[key] || translations['en']?.[key] || key;
+
+    const loadLogs = async () => {
+        if (ipcRenderer) {
+            const content = await ipcRenderer.invoke('read-log-file');
+            setLogContent(content || t('noLogs'));
+        }
+    };
+
+    useEffect(() => {
+        if (logsOpen) {
+            loadLogs();
+        }
+    }, [logsOpen]);
 
     useEffect(() => {
         const handleFocus = () => setIsFocused(true);
@@ -46,7 +88,7 @@ export default function App() {
         }
     }, [settingsOpen, ipcRenderer]);
 
-    // 3. Helper Method to Safely Append Markdown Text Layout Symbols
+    // Helper Method to Safely Append Markdown Text Layout Symbols
     const handleInsertMarkup = (syntax) => {
         updateMarkdown((markdownText || "") + syntax);
     };
@@ -57,22 +99,29 @@ export default function App() {
         ? "shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-black/15 scale-[0.99] border-black/20"
         : "shadow-[0_4px_12px_rgba(0,0,0,0.15)] ring-1 ring-black/5 scale-100 border-black/10";
 
+    const containerBg = isDarkMode ? 'bg-slate-950 border-zinc-800 text-slate-100' : noteColor;
+
     return (
         // The outermost parent container must take up 100% of the screen width and height
         <div
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className="w-full h-screen p-1.5 bg-transparent font-sans antialiased relative transition-all duration-300"
+            className={`w-full h-screen p-1.5 bg-transparent font-sans antialiased relative transition-all duration-300 ${isDarkMode ? 'dark text-slate-100' : 'text-slate-900'}`}
         >
-            <div className={`w-full h-full border rounded-2xl flex flex-col overflow-hidden transition-all duration-300 ${noteColor} ${shadowClass}`}>
+            <div className={`w-full h-full border rounded-2xl flex flex-col overflow-hidden transition-all duration-300 ${containerBg} ${shadowClass}`}>
 
                 <Header
-                    title={noteTitle}
+                    title={noteTitle === "New Note" ? t('newNote') : noteTitle}
                     noteColor={noteColor}
                     ipcRenderer={ipcRenderer}
                     onUpdateTitle={updateNoteTitle}
                     alwaysOnTop={alwaysOnTop}
                     onToggleAlwaysOnTop={toggleAlwaysOnTop}
+                    onToggleSettings={() => setSettingsOpen(prev => !prev)}
+                    onToggleLogs={() => setLogsOpen(prev => !prev)}
+                    onToggleHelp={() => setHelpOpen(prev => !prev)}
+                    isDarkMode={isDarkMode}
+                    onToggleDarkMode={() => setIsDarkMode(prev => !prev)}
                 />
 
                 {/* Primary Content Base Board Container Workspace Frame */}
@@ -82,7 +131,7 @@ export default function App() {
                     <SettingsPanel
                         isOpen={settingsOpen}
                         onClose={() => setSettingsOpen(false)}
-                        appName="e-Smritipatra Desktop Core"
+                        appName={t('appName')}
                         noteTitle={noteTitle}
                         onUpdateTitle={updateNoteTitle}
                         alwaysOnTop={alwaysOnTop}
@@ -114,19 +163,24 @@ export default function App() {
                         onCreateWidgetInFolder={createWidgetInFolder}
                         db={db}
                         onTriggerRefresh={triggerRefresh}
+
+                        // i18n
+                        t={t}
+                        lang={lang}
+                        setLang={setLang}
                     />
 
                     {!dbReady ? (
                         <div className="flex-1 flex items-center justify-center text-xs opacity-50 font-bold animate-pulse tracking-wide select-none">
-                            Initializing SQLite Disk Context...
+                            {t('initializing')}
                         </div>
                     ) : (
                         <>
                             {/* Dual-Mode Canvas Layer Content Selection Logic Router */}
                             {viewMode === "tasks" ? (
                                 <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-100">
-                                    <TaskForm onAddTask={addTask} />
-                                    <TaskList tasks={tasks} onToggleTask={toggleTask} onDeleteTask={deleteTaskGlobal} />
+                                    <TaskForm onAddTask={addTask} t={t} />
+                                    <TaskList tasks={tasks} onToggleTask={toggleTask} onDeleteTask={deleteTaskGlobal} t={t} />
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-100">
@@ -142,12 +196,63 @@ export default function App() {
                                 hasTasks={tasks.length > 0}
                                 viewMode={viewMode}
                                 onToggleView={toggleViewMode}
-                                onOpenSettings={() => setSettingsOpen(true)}
+                                t={t}
                             />
                         </>
                     )}
                 </div>
             </div>
+
+            {/* Console Log Overlay Modal */}
+            {logsOpen && (
+                <div style={{WebkitAppRegion: 'no-drag'}} className="absolute inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 z-[60] animate-in fade-in duration-150">
+                    <div className="w-[96%] h-[94%] bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-zinc-800 flex flex-col overflow-hidden">
+                        <div className="px-3 py-2 bg-slate-950 border-b border-zinc-800 flex items-center justify-between flex-shrink-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <FontAwesomeIcon icon={faTerminal} className="text-sky-500" /> {t('consoleLogs')}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button onClick={loadLogs} className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer">
+                                    <FontAwesomeIcon icon={faRotateRight} />
+                                </button>
+                                <button onClick={() => setLogsOpen(false)} className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer">
+                                    <FontAwesomeIcon icon={faXmark} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 p-3 overflow-auto font-mono text-[9px] whitespace-pre-wrap select-text selection:bg-sky-500/30 selection:text-white">
+                            {logContent}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Help Overlay Modal */}
+            {helpOpen && (
+                <div style={{WebkitAppRegion: 'no-drag'}} className="absolute inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 z-[60] animate-in fade-in duration-150">
+                    <div className="w-[90%] bg-white rounded-2xl shadow-2xl border border-black/10 flex flex-col overflow-hidden text-slate-800 p-4 space-y-4">
+                        <div className="flex items-center justify-between border-b border-black/5 pb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                <FontAwesomeIcon icon={faQuestionCircle} className="text-sky-500" /> {t('helpTitle')}
+                            </span>
+                            <button onClick={() => setHelpOpen(false)} className="text-slate-400 hover:text-slate-650 p-1 cursor-pointer">
+                                <FontAwesomeIcon icon={faXmark} />
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-relaxed select-text">
+                            {t('helpText')}
+                        </p>
+                        <div className="pt-2 border-t border-black/5 flex flex-col gap-2">
+                            <button
+                                onClick={() => ipcRenderer && ipcRenderer.send('open-external-link', 'https://github.com/utkarshpriyadarshi1/e-smritipatra/issues')}
+                                className="w-full py-2 bg-slate-900 hover:bg-black text-white rounded-lg font-bold text-[10px] cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                                <FontAwesomeIcon icon={faBug} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

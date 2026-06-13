@@ -1,18 +1,69 @@
-# React + Vite
+# Smritipatra 📝
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Smritipatra** is an offline, lightweight desktop sticky note widget and task management tool. It is designed to act as a distraction-free, persistent desktop notepad that integrates checklists and Markdown rendering inside sleek, customizable glassmorphism widgets.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Key Features
 
-## React Compiler
+- 📌 **Always On Top Sticky Widgets**: Pin notes to your desktop screen so they stay active and visible above other open windows.
+- 🎨 **Sleek Customization**: Switch between multiple harmonious, modern themes (Glassmorphism, Dark, Light, Amber, Rose, Sky, and Emerald).
+- 🔀 **Dual-Mode Canvas**: Toggle instantly between interactive checklists (with subtasks) and Markdown rich text editing (complete with formatting tools).
+- 📁 **Folder Grouping**: Categorize notes and checklist widgets into custom folders and notebooks.
+- 💾 **Native Local Storage**: Persists data inside a local, performant SQLite database file powered by SQL.js WASM driver.
+- 🌍 **International Language Support**: Full UTF-8 database encoding allows you to write in any language (including Sanskrit, Hindi, Japanese, Arabic, and Emoji).
+- 📦 **Standalone Packaging**: Package the application into standalone installers (.exe, .dmg, .AppImage) using automated pipeline scripts.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+---
 
-Note: This will impact Vite dev & build performances.
+## 📂 Project Directory Structure
 
-## Expanding the ESLint configuration
+```text
+├── packaging-builder/   # Automated version, certificate, build, & clean scripts
+├── backend/             # Electron main process files (window manager, fs controllers)
+├── frontend/            # React + Vite renderer source (UI components, styling, hooks)
+├── docs/                # Architecture plans, db schemas, and setup instructions
+├── app.config.json      # Central configuration file for naming, versions, and icons
+├── dev.bat / dev.sh     # Root delegator scripts to run the dev environment
+├── build.bat / build.sh # Root delegator scripts to compile production packages
+└── clean.bat / clean.sh # Root delegator scripts to wipe build cache/directories
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## 🚀 Getting Started
+
+Getting started with local development is straightforward:
+
+### 1. Run the Onboarding Setup Script
+Run the script appropriate for your platform to install dependencies and configure credentials:
+- **Windows**: `setup.bat` (Generates and trusts a local self-signed code-signing certificate; requires Administrator privileges).
+- **macOS / Linux**: `chmod +x setup.sh && ./setup.sh`
+
+### 2. Run the Development Server
+Launch Vite and Electron concurrently to start the hot-reloading app window:
+- **Windows**: `dev.bat`
+- **macOS / Linux**: `./dev.sh`
+
+### 3. Build & Package (Production)
+Compile the production installer packages:
+- **Windows**: `build.bat`
+- **macOS / Linux**: `./build.sh`
+
+All compiled installers will be written to `frontend/dist/`.
+
+---
+
+## 📖 Documentation Reference
+
+For deeper technical insight, consult our documentation folder:
+- [Architecture Overview](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/architecture-overview.md)
+- [Database Schema](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/database-schema.md)
+- [Development Setup](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/development-setup.md)
+- [Platform Specifications](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/features-platforms.md)
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/LICENSE).

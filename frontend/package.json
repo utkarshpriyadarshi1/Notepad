@@ -1,5 +1,5 @@
 {
-  "name": "e-smritipatra-desktop",
+  "name": "smritipatra-desktop",
   "version": "1.0.0",
   "description": "Offline sticky notes and task management widgets",
   "main": "backend/main.js",
@@ -31,8 +31,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.e-smritipatra.desktop",
-    "productName": "e-Smritipatra",
+    "appId": "com.smritipatra.desktop",
+    "productName": "Smritipatra",
     "files": [
       "dist/**/*",
       {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
     faBook, 
@@ -41,7 +41,8 @@ export default function WidgetTab({
     onDeleteFolder,
     onCreateWidgetInFolder,
     db,
-    onTriggerRefresh
+    onTriggerRefresh,
+    t
 }) {
     const [activeFolderUuid, setActiveFolderUuid] = useState('folder_1');
     const [selectedWidgetUuid, setSelectedWidgetUuid] = useState(currentWidgetId || null);
@@ -262,7 +263,7 @@ export default function WidgetTab({
             <div className="w-[22%] border-r border-black/5 bg-slate-50 flex flex-col p-3 min-h-0 justify-between select-none">
                 <div className="flex flex-col min-h-0">
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2.5 block">
-                        Notebooks
+                        {t('folders')}
                     </span>
                     <div className="flex-1 overflow-y-auto space-y-1 scrollbar-none pr-0.5">
                         {allFolders.map(f => {
@@ -292,7 +293,7 @@ export default function WidgetTab({
                                                 className="w-full bg-slate-700 text-white rounded px-1 py-0.2 text-[10px] focus:outline-none"
                                             />
                                         ) : (
-                                            <span className="truncate max-w-[80px]">{f.name}</span>
+                                            <span className="truncate max-w-[80px]">{f.uuid === 'folder_1' ? t('myNotebook') : f.name}</span>
                                         )}
                                     </div>
                                     {editingFolderUuid !== f.uuid && (
@@ -307,7 +308,7 @@ export default function WidgetTab({
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        confirm(`Wipe notebook "${f.name}" and all notes inside it permanently?`) && onDeleteFolder(f.uuid);
+                                                        confirm(t('deleteFolder') + "?") && onDeleteFolder(f.uuid);
                                                     }}
                                                     className={`p-0.5 rounded ${isFolderActive ? 'hover:bg-white/10 text-red-300' : 'hover:bg-rose-50 text-rose-500'}`}
                                                 >
@@ -329,7 +330,7 @@ export default function WidgetTab({
                             type="text"
                             value={newFolderName}
                             onChange={e => setNewFolderName(e.target.value)}
-                            placeholder="Notebook name..."
+                            placeholder={t('folderName') + "..."}
                             autoFocus
                             onKeyDown={e => {
                                 if (e.key === 'Enter') {
@@ -338,7 +339,7 @@ export default function WidgetTab({
                                     setIsCreatingFolder(false);
                                 }
                                 if (e.key === 'Escape') setIsCreatingFolder(false);
-                            }}
+                             }}
                             onBlur={() => setIsCreatingFolder(false)}
                             className="w-full text-[10px] px-2 py-1 bg-white border border-black/10 rounded-lg focus:outline-none focus:border-slate-800"
                         />
@@ -347,7 +348,7 @@ export default function WidgetTab({
                             onClick={() => setIsCreatingFolder(true)}
                             className="w-full py-1.5 border border-dashed border-black/15 hover:border-slate-800 rounded-lg text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-colors"
                         >
-                            <FontAwesomeIcon icon={faPlus} /> Add Notebook
+                            <FontAwesomeIcon icon={faPlus} />
                         </button>
                     )}
                 </div>
@@ -357,14 +358,13 @@ export default function WidgetTab({
             <div className="w-[28%] border-r border-black/5 bg-white flex flex-col p-3 min-h-0 justify-between select-none">
                 <div className="flex flex-col min-h-0">
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2.5 block">
-                        {activeFolder ? `${activeFolder.name} Notes` : 'Notes'}
+                        {t('widgets')}
                     </span>
                     <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-none">
                         {folderWidgets.map(w => {
                             const isNoteSelected = w.uuid === selectedWidgetUuid;
                             const isVisible = !!windowsState[w.uuid]?.visible;
                             const isPinned = !!windowsState[w.uuid]?.pinned;
-                            const isCurrent = w.uuid === currentWidgetId;
 
                             return (
                                 <div
@@ -422,32 +422,15 @@ export default function WidgetTab({
                                                 />
                                             ) : (
                                                 <span className="text-[11px] font-bold text-slate-700 truncate max-w-[100px]">
-                                                    {w.title}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Status badges */}
-                                        <div className="flex-shrink-0 flex gap-1">
-                                            {isCurrent ? (
-                                                <span className="bg-slate-800 text-white border border-black/5 px-1 py-0.2 rounded text-[7px] font-extrabold uppercase tracking-tight flex-shrink-0">
-                                                    Current
-                                                </span>
-                                            ) : (
-                                                <span className={`px-1 py-0.2 rounded text-[7px] font-extrabold uppercase tracking-tight flex-shrink-0 border ${
-                                                    isVisible 
-                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-500/10' 
-                                                        : 'bg-slate-100 text-slate-400 border-black/5'
-                                                }`}>
-                                                    {isVisible ? 'Visible' : 'Hidden'}
+                                                    {w.title === 'New Note' ? t('newNote') : w.title}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* Action Buttons Row */}
-                                    <div className="flex items-center justify-between border-t border-black/5 pt-1.5 text-slate-400">
-                                        <span className="text-[8px] font-semibold text-slate-350 select-text font-mono truncate max-w-[80px]">
+                                    <div className="flex items-center justify-between border-t border-black/5 pt-1.5 text-slate-450">
+                                        <span className="text-[8px] font-semibold select-text font-mono truncate max-w-[80px]">
                                             ID: {w.uuid}
                                         </span>
                                         <div className="flex items-center gap-1.5">
@@ -455,7 +438,6 @@ export default function WidgetTab({
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleTogglePin(w.uuid); }}
                                                 className={`p-0.5 hover:bg-black/5 rounded cursor-pointer ${isPinned ? 'text-indigo-600' : 'text-slate-400'}`}
-                                                title={isPinned ? "Unpin note window" : "Pin note window"}
                                             >
                                                 <FontAwesomeIcon icon={faThumbtack} className="text-[8px]" />
                                             </button>
@@ -464,7 +446,6 @@ export default function WidgetTab({
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); isVisible ? handleHide(w.uuid) : handleShow(w.uuid); }}
                                                 className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400"
-                                                title={isVisible ? "Hide note window" : "Show note window"}
                                             >
                                                 <FontAwesomeIcon icon={isVisible ? faEyeSlash : faEye} className="text-[8px]" />
                                             </button>
@@ -474,7 +455,6 @@ export default function WidgetTab({
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); startWidgetRename(w); }}
                                                     className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400"
-                                                    title="Rename note"
                                                 >
                                                     <FontAwesomeIcon icon={faPen} className="text-[8px]" />
                                                 </button>
@@ -484,7 +464,6 @@ export default function WidgetTab({
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onExportWidget(w.uuid, w.title); }}
                                                 className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400"
-                                                title="Export note backup"
                                             >
                                                 <FontAwesomeIcon icon={faFileExport} className="text-[8px]" />
                                             </button>
@@ -493,10 +472,9 @@ export default function WidgetTab({
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    confirm(`Delete note widget "${w.title}"? This will delete all its checklist items permanently.`) && onDeleteWidget(w.uuid);
+                                                    confirm(t('deleteWidget') + "?") && onDeleteWidget(w.uuid);
                                                 }}
                                                 className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400 hover:text-rose-500"
-                                                title="Delete note"
                                             >
                                                 <FontAwesomeIcon icon={faTrashCan} className="text-[8px]" />
                                             </button>
@@ -515,7 +493,7 @@ export default function WidgetTab({
                             type="text"
                             value={newNoteTitle}
                             onChange={e => setNewNoteTitle(e.target.value)}
-                            placeholder="Note title..."
+                            placeholder={t('widgetTitle') + "..."}
                             autoFocus
                             onKeyDown={e => {
                                 if (e.key === 'Enter') {
@@ -533,7 +511,7 @@ export default function WidgetTab({
                             onClick={() => setIsCreatingNote(true)}
                             className="w-full py-1.5 border border-dashed border-black/15 hover:border-slate-800 rounded-lg text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-colors"
                         >
-                            <FontAwesomeIcon icon={faPlus} /> Add Note
+                            <FontAwesomeIcon icon={faPlus} />
                         </button>
                     )}
                 </div>
@@ -545,7 +523,7 @@ export default function WidgetTab({
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 opacity-60 gap-1.5">
                         <FontAwesomeIcon icon={faBook} className="text-3xl" />
                         <span className="font-semibold text-[10px] uppercase tracking-wider">
-                            Select a Note to Edit
+                            {t('selectTheme')}
                         </span>
                     </div>
                 ) : (
@@ -554,28 +532,22 @@ export default function WidgetTab({
                         <div className={`p-3 border border-black/10 rounded-xl mb-3 flex items-center justify-between ${headerBgColorClasses[selectedWidget.theme] || 'bg-slate-50'}`}>
                             <div className="flex-1 min-w-0 flex flex-col">
                                 <span className="font-extrabold uppercase tracking-widest text-[7px] text-slate-400 select-none">
-                                    Editing Profile
+                                    {t('widgets')}
                                 </span>
                                 <span className="text-[13px] font-bold text-slate-800 truncate select-all">
-                                    {selectedWidget.title}
+                                    {selectedWidget.title === 'New Note' ? t('newNote') : selectedWidget.title}
                                 </span>
                             </div>
 
                             {/* Column 3 header actions */}
                             <div className="flex items-center gap-2">
                                 {/* Mode toggle switcher */}
-                                <div className="group relative flex items-center select-none">
-                                    <button
-                                        onClick={handleToggleViewMode}
-                                        className="px-2 py-1 bg-white border border-black/10 hover:bg-slate-50 rounded-lg text-[9px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
-                                    >
-                                        <FontAwesomeIcon icon={selectedWidget.viewMode === 'tasks' ? faFileLines : faListCheck} />
-                                        {selectedWidget.viewMode === 'tasks' ? "Use Editor" : "Use Checklist"}
-                                    </button>
-                                    <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[8px] font-bold tracking-wide uppercase rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-[100] shadow-md border border-white/10">
-                                        Toggle View Mode
-                                    </div>
-                                </div>
+                                <button
+                                    onClick={handleToggleViewMode}
+                                    className="px-2 py-1 bg-white border border-black/10 hover:bg-slate-50 rounded-lg text-[9px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                                >
+                                    <FontAwesomeIcon icon={selectedWidget.viewMode === 'tasks' ? faFileLines : faListCheck} />
+                                </button>
                             </div>
                         </div>
 
@@ -583,19 +555,20 @@ export default function WidgetTab({
                         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                             {selectedWidget.viewMode === "tasks" ? (
                                 <div className="flex-1 flex flex-col overflow-hidden">
-                                    <TaskForm onAddTask={handleAddTask} />
+                                    <TaskForm onAddTask={handleAddTask} t={t} />
                                     <TaskList 
                                         tasks={tasks} 
                                         onToggleTask={(taskId, currentDone) => handleToggleTask(taskId, currentDone)} 
                                         onDeleteTask={(taskId) => handleDeleteTask(taskId)} 
+                                        t={t}
                                     />
                                     {tasks.length > 0 && (
                                         <div className="mt-2.5 pt-2.5 border-t border-black/5 flex justify-end select-none">
                                             <button
                                                 onClick={handleClearCompleted}
-                                                className="px-2.5 py-1 bg-black/5 hover:bg-black/10 rounded-md text-[9px] font-bold text-slate-600 cursor-pointer flex items-center gap-1 opacity-85 transition-colors"
+                                                className="p-1.5 bg-black/5 hover:bg-black/10 rounded-full text-[13px] cursor-pointer flex items-center justify-center text-slate-900 font-bold"
                                             >
-                                                <FontAwesomeIcon icon={faCheckDouble} /> Clear Completed
+                                                <FontAwesomeIcon icon={faCheckDouble} />
                                             </button>
                                         </div>
                                     )}
@@ -603,7 +576,7 @@ export default function WidgetTab({
                             ) : (
                                 <div className="flex-1 flex flex-col overflow-hidden">
                                     <MarkdownToolbar onInsertMarkup={(syntax) => handleUpdateMarkdown(markdownText + syntax)} />
-                                    <MarkdownEditor text={markdownText} onUpdate={(text, immediate) => handleUpdateMarkdown(text)} />
+                                    <MarkdownEditor text={markdownText} onUpdate={(text) => handleUpdateMarkdown(text)} />
                                 </div>
                             )}
                         </div>

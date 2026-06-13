@@ -30,7 +30,12 @@ export default function SettingsPanel({
                                            onDeleteFolder,
                                            onCreateWidgetInFolder,
                                            db,
-                                           onTriggerRefresh
+                                           onTriggerRefresh,
+
+                                           // i18n
+                                           t,
+                                           lang,
+                                           setLang
                                        }) {
     const [activeTab, setActiveTab] = useState("config");
 
@@ -46,6 +51,9 @@ export default function SettingsPanel({
                         onResetDatabase={onResetDatabase}
                         serviceStatus={serviceStatus}
                         onServiceAction={onServiceAction}
+                        t={t}
+                        lang={lang}
+                        setLang={setLang}
                     />
                 );
             case "widgets":
@@ -67,6 +75,7 @@ export default function SettingsPanel({
                         onCreateWidgetInFolder={onCreateWidgetInFolder}
                         db={db}
                         onTriggerRefresh={onTriggerRefresh}
+                        t={t}
                     />
                 );
             default:
@@ -85,6 +94,7 @@ export default function SettingsPanel({
                 setActiveTab={setActiveTab}
                 widgetCount={allWidgets.length}
                 onClose={onClose}
+                t={t}
             />
 
             {/* 2. Primary Layout Workspace Routing Panel Router */}
