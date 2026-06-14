@@ -1,5 +1,7 @@
 {
   "appName": "Smritipatra",
+  "heading": "Smritipatra",
+  "subtitle": "Offline sticky notes and task management widgets",
   "defaultTitle": "New Note",
   "dbFileName": "smritipatra_data.db",
   "colorThemes": {
@@ -12,7 +14,7 @@
     "green": "bg-emerald-200/90 border-emerald-300/50 text-emerald-900 header-emerald-300/60"
   },
   "taskManagerServiceName": "Smritipatra_Service",
-  "appVersion": "1.0.0",
+  "appVersion": "1.0.2",
   "icons": {
     "appIcon": "./backend/assets/app-icon.ico",
     "trayIcon": "./backend/assets/app-logo.png",

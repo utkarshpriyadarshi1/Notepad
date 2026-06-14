@@ -7,15 +7,16 @@ export default function TabNavigation({activeTab, setActiveTab, widgetCount, onC
             <div className="flex gap-1">
                 <button
                     onClick={() => setActiveTab("config")}
-                    className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'config' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:bg-black/5'}`}
+                    className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${activeTab === 'config' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:bg-black/5'}`}
                 >
-                    <FontAwesomeIcon icon={faSliders}/> {t('preferences')}
+                    <FontAwesomeIcon icon={faSliders} className="text-[11px]"/>
                 </button>
                 <button
                     onClick={() => setActiveTab("widgets")}
-                    className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'widgets' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:bg-black/5'}`}
+                    className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === 'widgets' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:bg-black/5'}`}
                 >
-                    <FontAwesomeIcon icon={faWindowRestore}/> {t('widgets')} ({widgetCount})
+                    <FontAwesomeIcon icon={faWindowRestore} className="text-[11px]"/>
+                    <span className="text-[9px] font-bold">({widgetCount})</span>
                 </button>
             </div>
             <button onClick={onClose}

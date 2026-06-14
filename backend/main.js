@@ -112,6 +112,32 @@ app.whenReady().then(() => {
         return w ? w.widgetId : 'widget_1';
     });
 
+    ipcMain.handle('read-help-files', async () => {
+        try {
+            const docsHelpPath = app.isPackaged
+                ? path.join(process.resourcesPath, 'docs/help')
+                : path.join(__dirname, '../docs/help');
+            
+            if (fs.existsSync(docsHelpPath)) {
+                const files = await fs.promises.readdir(docsHelpPath);
+                const mdFiles = files.filter(f => f.endsWith('.md'));
+                const results = [];
+                for (const file of mdFiles) {
+                    const content = await fs.promises.readFile(path.join(docsHelpPath, file), 'utf8');
+                    results.push({
+                        name: file.replace('.md', ''),
+                        content: content
+                    });
+                }
+                return results;
+            }
+            return [];
+        } catch (err) {
+            console.error("Failed to read help files:", err);
+            return [];
+        }
+    });
+
     ipcMain.handle('read-log-file', async () => {
         try {
             const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');

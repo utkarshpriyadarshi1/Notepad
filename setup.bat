@@ -41,7 +41,7 @@ echo.
 
 :: 3. Generate local Windows development certificate
 echo Configuring local code signing certificate...
-powershell -ExecutionPolicy Bypass -File "%~dp0packaging-builder\setup-cert.ps1"
+powershell -ExecutionPolicy Bypass -File "%~dp0builder\setup-cert.ps1"
 if %errorlevel% neq 0 (
     echo [WARNING] Development certificate setup failed or was cancelled (requires admin privileges to install).
     echo You can run the app locally, but packaging might fail unless you run setup.bat as Administrator.

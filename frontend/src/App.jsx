@@ -11,6 +11,7 @@ import MarkdownEditor from './components/MarkdownEditor';
 import { translations } from './services/i18n';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTerminal, faXmark, faRotateRight, faQuestionCircle, faBug } from '@fortawesome/free-solid-svg-icons';
+import { marked } from 'marked';
 
 export default function App() {
     // 1. Structural Database Lifecycle Core Hook Extraction
@@ -40,6 +41,19 @@ export default function App() {
     const [logsOpen, setLogsOpen] = useState(false);
     const [logContent, setLogContent] = useState('');
     const [helpOpen, setHelpOpen] = useState(false);
+    const [helpGuides, setHelpGuides] = useState([]);
+    const [activeHelpGuide, setActiveHelpGuide] = useState('');
+
+    useEffect(() => {
+        if (helpOpen && ipcRenderer) {
+            ipcRenderer.invoke('read-help-files').then(guides => {
+                setHelpGuides(guides || []);
+                if (guides && guides.length > 0) {
+                    setActiveHelpGuide(guides[0].name);
+                }
+            });
+        }
+    }, [helpOpen, ipcRenderer]);
 
     useEffect(() => {
         localStorage.setItem('smritipatra_lang', lang);
@@ -230,19 +244,49 @@ export default function App() {
             {/* Help Overlay Modal */}
             {helpOpen && (
                 <div style={{WebkitAppRegion: 'no-drag'}} className="absolute inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 z-[60] animate-in fade-in duration-150">
-                    <div className="w-[90%] bg-white rounded-2xl shadow-2xl border border-black/10 flex flex-col overflow-hidden text-slate-800 p-4 space-y-4">
-                        <div className="flex items-center justify-between border-b border-black/5 pb-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <div className="w-[94%] h-[94%] bg-white rounded-2xl shadow-2xl border border-black/10 flex flex-col overflow-hidden text-slate-800 p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-black/5 pb-1 flex-shrink-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                                 <FontAwesomeIcon icon={faQuestionCircle} className="text-sky-500" /> {t('helpTitle')}
                             </span>
                             <button onClick={() => setHelpOpen(false)} className="text-slate-400 hover:text-slate-650 p-1 cursor-pointer">
                                 <FontAwesomeIcon icon={faXmark} />
                             </button>
                         </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed select-text">
-                            {t('helpText')}
-                        </p>
-                        <div className="pt-2 border-t border-black/5 flex flex-col gap-2">
+
+                        {helpGuides.length > 0 ? (
+                            <>
+                                <div className="flex border-b border-black/5 overflow-x-auto scrollbar-none flex-shrink-0 gap-1 pb-1">
+                                    {helpGuides.map(guide => (
+                                        <button
+                                            key={guide.name}
+                                            onClick={() => setActiveHelpGuide(guide.name)}
+                                            className={`py-1 px-2 border-b-2 font-bold text-[8px] uppercase tracking-wider whitespace-nowrap cursor-pointer transition-colors ${
+                                                activeHelpGuide === guide.name
+                                                    ? 'border-sky-500 text-sky-500 bg-sky-50/20'
+                                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                            } rounded-t-md`}
+                                        >
+                                            {guide.name.replace(/-/g, ' ')}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex-1 overflow-y-auto text-[9.5px] text-slate-600 leading-relaxed select-text pr-1 markdown-body scrollbar-none pt-1">
+                                    <div 
+                                        className="prose prose-sm max-w-none text-slate-700"
+                                        dangerouslySetInnerHTML={{ 
+                                            __html: marked.parse(helpGuides.find(g => g.name === activeHelpGuide)?.content || '') 
+                                        }} 
+                                    />
+                                </div>
+                            </>
+                        ) : (
+                            <p className="text-[11px] text-slate-600 leading-relaxed select-text flex-1">
+                                {t('helpText')}
+                            </p>
+                        )}
+
+                        <div className="pt-2 border-t border-black/5 flex flex-col gap-2 flex-shrink-0">
                             <button
                                 onClick={() => ipcRenderer && ipcRenderer.send('open-external-link', 'https://github.com/utkarshpriyadarshi1/e-smritipatra/issues')}
                                 className="w-full py-2 bg-slate-900 hover:bg-black text-white rounded-lg font-bold text-[10px] cursor-pointer flex items-center justify-center gap-1.5"

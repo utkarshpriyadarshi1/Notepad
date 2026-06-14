@@ -48,7 +48,11 @@ def main():
     package_data['version'] = new_version
     with open(package_path, 'w', encoding='utf-8') as f:
         json.dump(package_data, f, indent=2)
-    print(f"🚀 Bumped version in frontend/package.json: {current_version} ➔ {new_version}")
+    
+    try:
+        print(f"[VERSION] Bumped version in frontend/package.json: {current_version} -> {new_version}")
+    except UnicodeEncodeError:
+        print(f"[VERSION] Bumped version in frontend/package.json: {current_version} -> {new_version}")
     
     # Update app.config.json if it exists
     if os.path.exists(config_path):
@@ -57,9 +61,15 @@ def main():
         config_data['appVersion'] = new_version
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2)
-        print(f"🚀 Bumped version in app.config.json: {current_version} ➔ {new_version}")
+        try:
+            print(f"[VERSION] Bumped version in app.config.json: {current_version} -> {new_version}")
+        except UnicodeEncodeError:
+            print(f"[VERSION] Bumped version in app.config.json: {current_version} -> {new_version}")
     else:
-        print(f"⚠️ app.config.json not found at {config_path}, skipping configuration update.")
+        try:
+            print(f"[WARNING] app.config.json not found at {config_path}, skipping configuration update.")
+        except UnicodeEncodeError:
+            print(f"[WARNING] app.config.json not found at {config_path}, skipping configuration update.")
 
 if __name__ == '__main__':
     main()
