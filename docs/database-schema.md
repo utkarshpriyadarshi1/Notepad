@@ -29,6 +29,7 @@ Represents individual sticky note widget properties.
 - `geometry_height` (INTEGER)
 - `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
 - `updated_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- `is_pinned` (INTEGER DEFAULT 0)
 
 ## 4. `task_items`
 Represents checklists inside widget cards.

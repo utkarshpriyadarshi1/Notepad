@@ -10,25 +10,25 @@
     "package": "npm run build && electron-builder"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^6.5.2",
-    "@fortawesome/free-regular-svg-icons": "^6.5.2",
-    "@fortawesome/free-solid-svg-icons": "^6.5.2",
-    "@fortawesome/react-fontawesome": "^0.2.2",
-    "marked": "^12.0.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "@fortawesome/fontawesome-svg-core": "^7.2.0",
+    "@fortawesome/free-regular-svg-icons": "^7.2.0",
+    "@fortawesome/free-solid-svg-icons": "^7.2.0",
+    "@fortawesome/react-fontawesome": "^0.2.6",
+    "marked": "^18.0.5",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "sql.js": "^1.10.3"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@vitejs/plugin-react": "5.1.2",
-    "concurrently": "^8.2.2",
-    "cross-env": "^7.0.3",
-    "electron": "^30.0.0",
-    "electron-builder": "^24.13.3",
-    "tailwindcss": "^4.0.0",
-    "vite": "^5.0.0",
-    "wait-on": "^7.2.0"
+    "@tailwindcss/vite": "^4.3.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.3.1",
+    "vite": "^8.0.16",
+    "wait-on": "^9.0.10"
   },
   "build": {
     "appId": "com.smritipatra.desktop",
