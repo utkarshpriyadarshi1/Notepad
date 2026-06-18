@@ -38,23 +38,23 @@ export function useAdminActions(db, ipcRenderer, triggerRefresh) {
         triggerRefresh();
     };
 
-    const renameWidget = (uuid, newTitle) => {
+    const renameNote = (uuid, newTitle) => {
         if (!db || !newTitle.trim()) return;
-        db.run("UPDATE sticky_widgets SET widget_title = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [newTitle.trim(), uuid]);
+        db.run("UPDATE sticky_notes SET note_title = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [newTitle.trim(), uuid]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
 
-    const changeWidgetTheme = (uuid, themeName) => {
+    const changeNoteTheme = (uuid, themeName) => {
         if (!db) return;
-        db.run("UPDATE sticky_widgets SET widget_theme_preset = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [themeName, uuid]);
+        db.run("UPDATE sticky_notes SET note_theme_preset = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [themeName, uuid]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
 
-    const deleteWidget = (uuid) => {
+    const deleteNote = (uuid) => {
         if (!db) return;
-        db.run("DELETE FROM sticky_widgets WHERE widget_uuid = ?", [uuid]);
+        db.run("DELETE FROM sticky_notes WHERE note_uuid = ?", [uuid]);
         persistDatabaseToDisk(ipcRenderer, db);
         if (ipcRenderer) {
             ipcRenderer.send('delete-widget-window', uuid);
@@ -62,7 +62,7 @@ export function useAdminActions(db, ipcRenderer, triggerRefresh) {
         triggerRefresh();
     };
 
-    const focusWidget = (uuid) => {
+    const focusNoteWindow = (uuid) => {
         if (ipcRenderer) {
             ipcRenderer.send('focus-widget-window', uuid);
         }
@@ -74,9 +74,9 @@ export function useAdminActions(db, ipcRenderer, triggerRefresh) {
         executeRawDelete,
         deleteTaskGlobal,
         renameTaskGlobal,
-        renameWidget,
-        changeWidgetTheme,
-        deleteWidget,
-        focusWidget
+        renameNote,
+        changeNoteTheme,
+        deleteNote,
+        focusNoteWindow
     };
 }

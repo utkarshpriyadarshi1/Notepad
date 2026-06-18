@@ -17,7 +17,7 @@ export function useMarkdownActions(db, ipcRenderer, triggerRefresh, windowId) {
     const toggleViewMode = () => {
         if (!db) return;
         const nextMode = viewMode === "tasks" ? "markdown" : "tasks";
-        db.run("UPDATE sticky_widgets SET widget_view_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [nextMode, windowId]);
+        db.run("UPDATE sticky_notes SET note_view_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [nextMode, windowId]);
         persistDatabaseToDisk(ipcRenderer, db);
         setViewMode(nextMode);
     };
@@ -32,7 +32,7 @@ export function useMarkdownActions(db, ipcRenderer, triggerRefresh, windowId) {
         const saveFn = () => {
             if (!db) return;
             try {
-                db.run("UPDATE sticky_widgets SET widget_markdown_content = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [text, windowId]);
+                db.run("UPDATE sticky_notes SET note_markdown_content = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [text, windowId]);
                 persistDatabaseToDisk(ipcRenderer, db);
             } catch (err) {
                 console.error("Failed to save markdown:", err);

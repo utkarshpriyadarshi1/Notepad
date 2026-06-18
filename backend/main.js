@@ -301,15 +301,36 @@ ipcMain.on('drag-window', (event, dx, dy) => {
 });
 
 ipcMain.on('resize-to-settings', (event, isOpen) => {
-    const w = BrowserWindow.fromWebContents(event.sender);
-    if (w) {
-        if (isOpen) {
-            w.setResizable(true);
-            w.setSize(920, 550);
-            w.center();
+    // No-op under the new Notepad main layout architecture
+});
+
+ipcMain.on('window-minimize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) win.minimize();
+});
+
+ipcMain.on('window-maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+        if (win.isMaximized()) {
+            win.unmaximize();
         } else {
-            w.setSize(350, 420);
-            w.setResizable(config.windowDefaults?.resizable ?? true);
+            win.maximize();
+        }
+    }
+});
+
+ipcMain.on('window-close', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+        if (win.widgetId === 'main_notepad') {
+            app.isQuitting = true;
+            app.quit();
+        } else {
+            win.hide();
+            BrowserWindow.getAllWindows().forEach(w => {
+                w.webContents.send('window-state-updated');
+            });
         }
     }
 });
@@ -355,38 +376,53 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // Remove or comment out: app.disableHardwareAcceleration();
 
 function createWidgetWindow(targetWidgetId = null) {
-    // Determine if this is the dashboard window (either targetWidgetId is 'widget_1' or this is the first window being created)
-    const isDashboard = targetWidgetId === 'widget_1' || 
-        (targetWidgetId === null && BrowserWindow.getAllWindows().length === 0);
+    const activeWindows = BrowserWindow.getAllWindows();
+    
+    // Determine if this is the main notepad window
+    let widgetId = targetWidgetId;
+    if (!widgetId) {
+        const hasMain = activeWindows.some(w => w.widgetId === 'main_notepad');
+        widgetId = hasMain ? `widget_${Date.now()}` : 'main_notepad';
+    }
+    
+    const isMain = widgetId === 'main_notepad';
+    
+    const width = isMain ? 1000 : (config.windowDefaults?.width || 350);
+    const height = isMain ? 650 : (config.windowDefaults?.height || 420);
+    const transparent = !isMain;
+    const alwaysOnTop = !isMain;
+    const resizable = true;
+    const frame = false;
 
-    const defaultWidth = isDashboard ? 920 : (config.windowDefaults?.width || 350);
-    const defaultHeight = isDashboard ? 550 : (config.windowDefaults?.height || 420);
-
-    // Centers the initial widget window directly on screen safely
-    const win = new BrowserWindow({
-        width: defaultWidth,
-        height: defaultHeight,
-        x: isDashboard ? undefined : 150, // Let Electron center it if it's dashboard, or set position
-        y: isDashboard ? undefined : 150,
-        frame: false,
-        transparent: true,
-        hasShadow: true, // Re-enable window shadows to allow frame drawing initialization
-        alwaysOnTop: isDashboard ? false : (config.windowDefaults?.alwaysOnTop ?? true),
-        resizable: true,
+    const winOptions = {
+        width,
+        height,
+        frame,
+        transparent,
+        hasShadow: true,
+        alwaysOnTop,
+        resizable,
         icon: path.resolve(config.icons.taskbarIcon),
         title: config.appName,
         webPreferences: {
             nodeIntegration: true, contextIsolation: false,
         },
-    });
+    };
 
-    win.widgetId = targetWidgetId || (BrowserWindow.getAllWindows().filter(w => w !== win).length === 0 ? 'widget_1' : `widget_${Date.now()}`);
+    if (!isMain) {
+        winOptions.x = 150;
+        winOptions.y = 150;
+    }
 
-    // 3. SHOW WINDOW INSTANTLY WHEN READY TO PREVENT BLANK RENDERS
+    const win = new BrowserWindow(winOptions);
+    win.widgetId = widgetId;
+
+    if (isMain) {
+        win.center();
+    }
+
+    // SHOW WINDOW INSTANTLY WHEN READY TO PREVENT BLANK RENDERS
     win.once('ready-to-show', () => {
-        if (isDashboard) {
-            win.center();
-        }
         win.show();
         win.focus();
     });
@@ -402,10 +438,15 @@ function createWidgetWindow(targetWidgetId = null) {
     win.on('close', (e) => {
         if (!app.isQuitting) {
             e.preventDefault();
-            win.hide();
-            BrowserWindow.getAllWindows().forEach(w => {
-                w.webContents.send('window-state-updated');
-            });
+            if (win.widgetId === 'main_notepad') {
+                app.isQuitting = true;
+                app.quit();
+            } else {
+                win.hide();
+                BrowserWindow.getAllWindows().forEach(w => {
+                    w.webContents.send('window-state-updated');
+                });
+            }
         }
     });
 

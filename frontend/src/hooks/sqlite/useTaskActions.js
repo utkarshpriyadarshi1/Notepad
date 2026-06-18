@@ -6,7 +6,7 @@ export function useTaskActions(db, ipcRenderer, triggerRefresh, windowId) {
 
     const addTask = (text) => {
         if (!db || !text.trim()) return;
-        db.run("INSERT INTO task_items (item_uuid, parent_widget_uuid, item_text_payload, is_marked_completed) VALUES (?, ?, ?, 0)", ["task_" + Date.now(), windowId, text]);
+        db.run("INSERT INTO task_items (item_uuid, parent_note_uuid, item_text_payload, is_marked_completed) VALUES (?, ?, ?, 0)", ["task_" + Date.now(), windowId, text]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
@@ -20,7 +20,7 @@ export function useTaskActions(db, ipcRenderer, triggerRefresh, windowId) {
 
     const clearCompleted = () => {
         if (!db) return;
-        db.run("DELETE FROM task_items WHERE is_marked_completed = 1 AND parent_widget_uuid = ?", [windowId]);
+        db.run("DELETE FROM task_items WHERE is_marked_completed = 1 AND parent_note_uuid = ?", [windowId]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };

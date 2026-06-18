@@ -8,14 +8,14 @@ export function useThemeActions(db, ipcRenderer, triggerRefresh, colorThemes, wi
 
     const changeTheme = (colorName) => {
         if (!db) return;
-        db.run("UPDATE sticky_widgets SET widget_theme_preset = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [colorName, windowId]);
+        db.run("UPDATE sticky_notes SET note_theme_preset = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [colorName, windowId]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
 
     const updateNoteTitle = (newTitle) => {
         if (!db || !newTitle.trim()) return;
-        db.run("UPDATE sticky_widgets SET widget_title = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [newTitle.trim(), windowId]);
+        db.run("UPDATE sticky_notes SET note_title = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [newTitle.trim(), windowId]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
     };
