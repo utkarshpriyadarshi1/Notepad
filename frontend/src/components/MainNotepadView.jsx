@@ -104,6 +104,10 @@ export default function MainNotepadView({
     renameTaskGlobal,
     exportSingleTask,
     
+    // Day/Night mode props
+    isDarkMode,
+    onToggleDarkMode,
+    
     ipcRenderer
 }) {
     const [activeFolderUuid, setActiveFolderUuid] = useState('folder_1');
@@ -193,29 +197,8 @@ export default function MainNotepadView({
     const [isDraggingOverNotes, setIsDraggingOverNotes] = useState(false);
     const [draggingOverFolderUuid, setDraggingOverFolderUuid] = useState(null);
 
-    // Help & Dark Mode States
+    // Help Open State
     const [isHelpOpen, setIsHelpOpen] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        const stored = localStorage.getItem('theme');
-        if (stored) return stored === 'dark';
-        return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    });
-
-    const toggleThemeMode = () => {
-        setIsDarkMode(prev => {
-            const next = !prev;
-            const themeStr = next ? 'dark' : 'light';
-            localStorage.setItem('theme', themeStr);
-            document.documentElement.classList.toggle('dark', next);
-            document.documentElement.classList.toggle('light', !next);
-            return next;
-        });
-    };
-
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', isDarkMode);
-        document.documentElement.classList.toggle('light', !isDarkMode);
-    }, [isDarkMode]);
 
     // Selected Note Local Content Cache States
     const [tasks, setTasks] = useState([]);
@@ -1188,7 +1171,7 @@ export default function MainNotepadView({
                         <FontAwesomeIcon icon={faCircleQuestion} className="text-[11px]" />
                     </button>
                     <button 
-                        onClick={toggleThemeMode} 
+                        onClick={onToggleDarkMode} 
                         className="w-6 h-6 hover:bg-white/10 rounded flex items-center justify-center text-slate-355 hover:text-white transition-colors cursor-pointer"
                         title="Toggle Day/Night Theme"
                     >
@@ -2126,6 +2109,28 @@ export default function MainNotepadView({
                     onImport={triggerJsonImport}
                     db={db}
                     onTriggerRefresh={onTriggerRefresh}
+                    
+                    // Widget/Note Management Props
+                    allWidgets={allNotes}
+                    currentWidgetId={null}
+                    onRenameWidget={onRenameNote}
+                    onChangeWidgetTheme={onChangeNoteTheme}
+                    onDeleteWidget={onDeleteNote}
+                    onFocusWidget={(uuid) => ipcRenderer && ipcRenderer.send('focus-widget-window', uuid)}
+                    onCreateWidget={(name) => onCreateNoteInFolder('folder_1', name)}
+                    onExportWidget={onExportNote}
+                    
+                    // Folder & DB Props
+                    allFolders={allFolders}
+                    onCreateFolder={onCreateFolder}
+                    onRenameFolder={onRenameFolder}
+                    onDeleteFolder={onDeleteFolder}
+                    onCreateWidgetInFolder={onCreateNoteInFolder}
+                    
+                    serviceStatus={serviceStatus}
+                    onServiceAction={handleServiceAction}
+                    
+                    // DataHubTab props
                     onToggleTask={toggleTask}
                     onDeleteTask={deleteTaskGlobal}
                     onRenameTask={renameTaskGlobal}

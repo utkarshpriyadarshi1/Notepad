@@ -77,6 +77,10 @@ export default function StickyNoteView({
     renameTaskGlobal,
     exportSingleTask,
     
+    // Day/Night mode props
+    isDarkMode,
+    onToggleDarkMode,
+    
     ipcRenderer
 }) {
     const [isFocused, setIsFocused] = useState(true);
@@ -200,6 +204,8 @@ export default function StickyNoteView({
                     }}
                     alwaysOnTop={alwaysOnTop}
                     onToggleAlwaysOnTop={toggleAlwaysOnTop}
+                    isDarkMode={isDarkMode}
+                    onToggleDarkMode={onToggleDarkMode}
                 />
 
                 {/* Workspace Content Mount Zone */}
@@ -327,6 +333,26 @@ export default function StickyNoteView({
                         onImport={triggerJsonImport}
                         db={db}
                         onTriggerRefresh={onTriggerRefresh}
+
+                        // Widget/Note Management Props
+                        allWidgets={allNotes}
+                        currentWidgetId={windowId}
+                        onRenameWidget={onRenameNote}
+                        onChangeWidgetTheme={onChangeNoteTheme}
+                        onDeleteWidget={onDeleteNote}
+                        onFocusWidget={(uuid) => ipcRenderer && ipcRenderer.send('focus-widget-window', uuid)}
+                        onCreateWidget={(name) => onCreateNoteInFolder('folder_1', name)}
+                        onExportWidget={onExportNote}
+                        
+                        // Folder & DB Props
+                        allFolders={allFolders}
+                        onCreateFolder={onCreateFolder}
+                        onRenameFolder={onRenameFolder}
+                        onDeleteFolder={onDeleteFolder}
+                        onCreateWidgetInFolder={onCreateNoteInFolder}
+                        
+                        serviceStatus={serviceStatus}
+                        onServiceAction={handleServiceAction}
 
                         // DataHubTab props
                         onToggleTask={toggleTask}

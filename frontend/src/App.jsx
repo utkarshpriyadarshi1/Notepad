@@ -1,27 +1,44 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSqliteData } from './hooks/useSqliteData';
 import { useDesktopServices } from './hooks/useDesktopServices';
 import MainNotepadView from './components/MainNotepadView';
 import StickyNoteView from './components/StickyNoteView';
 
 export default function App() {
-    useEffect(() => {
-        const storedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const isDark = storedTheme === 'dark' || (!storedTheme && prefersDark);
-        document.documentElement.classList.toggle('dark', isDark);
-        document.documentElement.classList.toggle('light', !isDark);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const stored = localStorage.getItem('theme');
+        if (stored) return stored === 'dark';
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
 
+    const toggleDarkMode = () => {
+        setIsDarkMode(prev => {
+            const next = !prev;
+            const themeStr = next ? 'dark' : 'light';
+            localStorage.setItem('theme', themeStr);
+            document.documentElement.classList.toggle('dark', next);
+            document.documentElement.classList.toggle('light', !next);
+            return next;
+        });
+    };
+
+    useEffect(() => {
         const handleStorageChange = (e) => {
             if (e.key === 'theme') {
-                const newDark = e.newValue === 'dark';
-                document.documentElement.classList.toggle('dark', newDark);
-                document.documentElement.classList.toggle('light', !newDark);
+                const nextDark = e.newValue === 'dark';
+                setIsDarkMode(nextDark);
+                document.documentElement.classList.toggle('dark', nextDark);
+                document.documentElement.classList.toggle('light', !nextDark);
             }
         };
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
+
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', isDarkMode);
+        document.documentElement.classList.toggle('light', !isDarkMode);
+    }, [isDarkMode]);
     // 1. Structural Database Lifecycle Core Hook Extraction
     const {
         db, dbReady, tasks, noteTitle, noteColor, markdownText, alwaysOnTop, serviceStatus,
@@ -93,6 +110,10 @@ export default function App() {
                 renameTaskGlobal={renameTaskGlobal}
                 exportSingleTask={exportSingleTask}
                 
+                // Day/Night mode props
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={toggleDarkMode}
+                
                 ipcRenderer={ipcRenderer}
             />
         );
@@ -153,6 +174,10 @@ export default function App() {
             // Global Task CRUD for Data Hub
             renameTaskGlobal={renameTaskGlobal}
             exportSingleTask={exportSingleTask}
+            
+            // Day/Night mode props
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={toggleDarkMode}
             
             ipcRenderer={ipcRenderer}
         />

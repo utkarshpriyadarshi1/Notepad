@@ -398,7 +398,7 @@ function createWidgetWindow(targetWidgetId = null) {
     
     const width = isMain ? 1000 : (config.windowDefaults?.width || 350);
     const height = isMain ? 650 : (config.windowDefaults?.height || 420);
-    const transparent = !isMain;
+    const transparent = true;
     const alwaysOnTop = !isMain;
     const resizable = true;
     const frame = false;

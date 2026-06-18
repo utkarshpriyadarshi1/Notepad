@@ -1,6 +1,6 @@
 {
   "name": "smritipatra-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Offline sticky notes and task management widgets",
   "main": "backend/main.js",
   "type": "commonjs",

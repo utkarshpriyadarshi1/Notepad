@@ -15,7 +15,7 @@ export default function SettingsPanel({
                                            onExportWidget,
                                            
                                            // Widget Props
-                                           allWidgets,
+                                           allWidgets = [],
                                            currentWidgetId,
                                            onRenameWidget,
                                            onChangeWidgetTheme,
@@ -24,7 +24,7 @@ export default function SettingsPanel({
                                            onCreateWidget,
 
                                            // Folders & DB Props
-                                           allFolders,
+                                           allFolders = [],
                                            onCreateFolder,
                                            onRenameFolder,
                                            onDeleteFolder,
