@@ -4,7 +4,7 @@ const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 
 export function useDesktopServices(db, saveToLocalStorage, refreshUiData, windowId) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(windowId === 'widget_1');
 
     // Bounds Listener Configuration Setup
     useEffect(() => {
@@ -53,6 +53,9 @@ export function useDesktopServices(db, saveToLocalStorage, refreshUiData, window
                 db.run("DELETE FROM task_items; DELETE FROM sticky_widgets;");
                 if (payload.widgets) {
                     payload.widgets.forEach(row => {
+                        if (row.length === 12) {
+                            row.push(0);
+                        }
                         const placeholders = row.map(() => '?').join(', ');
                         db.run(`INSERT INTO sticky_widgets VALUES (${placeholders})`, row);
                     });

@@ -239,10 +239,16 @@ export default function WidgetTab({
         const state = windowsState[uuid];
         const nextPin = !state?.pinned;
 
+        if (db) {
+            db.run("UPDATE sticky_widgets SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [nextPin ? 1 : 0, uuid]);
+            persistDatabaseToDisk(electron.ipcRenderer, db);
+        }
+
         if (!state || !state.visible) {
             electron.ipcRenderer.send('focus-widget-window', uuid);
         }
         electron.ipcRenderer.send('set-widget-always-on-top', uuid, nextPin);
+        onTriggerRefresh();
     };
 
     const handleShow = (uuid) => {
@@ -364,7 +370,7 @@ export default function WidgetTab({
                         {folderWidgets.map(w => {
                             const isNoteSelected = w.uuid === selectedWidgetUuid;
                             const isVisible = !!windowsState[w.uuid]?.visible;
-                            const isPinned = !!windowsState[w.uuid]?.pinned;
+                            const isPinned = w.isPinned;
 
                             return (
                                 <div

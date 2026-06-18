@@ -49,7 +49,7 @@ export function useSqliteData() {
         if (!targetDb || !currentWidgetId) return;
         try {
             // Query master widget profile metrics using clean refactored columns
-            const widgetQuery = "SELECT widget_title, widget_theme_preset, widget_view_mode, widget_markdown_content FROM sticky_widgets WHERE widget_uuid = ?";
+            const widgetQuery = "SELECT widget_title, widget_theme_preset, widget_view_mode, widget_markdown_content, is_pinned FROM sticky_widgets WHERE widget_uuid = ?";
             const widgetRes = targetDb.exec(widgetQuery, [currentWidgetId]);
 
             if (widgetRes && widgetRes.length > 0 && widgetRes[0].values) {
@@ -59,6 +59,17 @@ export function useSqliteData() {
                 const dbMode = dataRow[2] === 'checklist' ? 'tasks' : dataRow[2];
                 setViewMode(dbMode);
                 setMarkdownText(dataRow[3]);
+
+                // If it is a sticky widget (not dashboard), apply the saved pin/alwaysOnTop state from DB
+                if (currentWidgetId !== 'widget_1') {
+                    const isPinned = dataRow[4] === 1;
+                    setAlwaysOnTop(isPinned);
+                    if (ipcRenderer) {
+                        ipcRenderer.send('set-widget-always-on-top', currentWidgetId, isPinned);
+                    }
+                } else {
+                    setAlwaysOnTop(false);
+                }
             }
 
             // Query related checklist items using clean foreign key targets
@@ -88,7 +99,7 @@ export function useSqliteData() {
             }
 
             // Query all widgets with parent_folder_uuid
-            const allWidgetsQuery = "SELECT widget_uuid, parent_folder_uuid, widget_title, widget_theme_preset, widget_view_mode FROM sticky_widgets";
+            const allWidgetsQuery = "SELECT widget_uuid, parent_folder_uuid, widget_title, widget_theme_preset, widget_view_mode, is_pinned FROM sticky_widgets";
             const allWidgetsRes = targetDb.exec(allWidgetsQuery);
             if (allWidgetsRes && allWidgetsRes.length > 0 && allWidgetsRes[0].values) {
                 setAllWidgets(allWidgetsRes[0].values.map(row => ({
@@ -96,7 +107,8 @@ export function useSqliteData() {
                     parentFolderUuid: row[1],
                     title: row[2],
                     theme: row[3],
-                    viewMode: row[4]
+                    viewMode: row[4],
+                    isPinned: row[5] === 1
                 })));
             } else {
                 setAllWidgets([]);
@@ -160,6 +172,22 @@ export function useSqliteData() {
             const activeDb = await initializeLocalDatabase(ipcRenderer, defaultName, currentWindowId);
             setDb(activeDb);
             refreshUiData(activeDb, currentWindowId);
+
+            // If this is the main dashboard window, open all saved pinned notes
+            if (currentWindowId === 'widget_1' && ipcRenderer) {
+                try {
+                    const pinnedRes = activeDb.exec("SELECT widget_uuid FROM sticky_widgets WHERE is_pinned = 1 AND widget_uuid != 'widget_1'");
+                    if (pinnedRes && pinnedRes.length > 0 && pinnedRes[0].values) {
+                        pinnedRes[0].values.forEach(row => {
+                            const pinnedWidgetId = row[0];
+                            ipcRenderer.send('focus-widget-window', pinnedWidgetId);
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to open pinned widgets on boot:", err);
+                }
+            }
+
             setDbReady(true);
         }
 
@@ -179,8 +207,19 @@ export function useSqliteData() {
 
     const toggleAlwaysOnTop = () => {
         setAlwaysOnTop(prev => {
-            if (ipcRenderer) ipcRenderer.send('set-always-on-top', !prev);
-            return !prev;
+            const nextVal = !prev;
+            if (ipcRenderer) {
+                if (windowId === 'widget_1') {
+                    ipcRenderer.send('set-always-on-top', nextVal);
+                } else {
+                    ipcRenderer.send('set-widget-always-on-top', windowId, nextVal);
+                }
+            }
+            if (db && windowId) {
+                db.run("UPDATE sticky_widgets SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE widget_uuid = ?", [nextVal ? 1 : 0, windowId]);
+                persistDatabaseToDisk(ipcRenderer, db);
+            }
+            return nextVal;
         });
     };
 

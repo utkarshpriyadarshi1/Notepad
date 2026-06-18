@@ -355,21 +355,24 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // Remove or comment out: app.disableHardwareAcceleration();
 
 function createWidgetWindow(targetWidgetId = null) {
-    // 2. FORCE EXPLICIT SAFE INITIAL COORDINATES
-    const defaultWidth = config.windowDefaults?.width || 350;
-    const defaultHeight = config.windowDefaults?.height || 420;
+    // Determine if this is the dashboard window (either targetWidgetId is 'widget_1' or this is the first window being created)
+    const isDashboard = targetWidgetId === 'widget_1' || 
+        (targetWidgetId === null && BrowserWindow.getAllWindows().length === 0);
+
+    const defaultWidth = isDashboard ? 920 : (config.windowDefaults?.width || 350);
+    const defaultHeight = isDashboard ? 550 : (config.windowDefaults?.height || 420);
 
     // Centers the initial widget window directly on screen safely
     const win = new BrowserWindow({
         width: defaultWidth,
         height: defaultHeight,
-        x: 150, // Force absolute safe X anchor placement
-        y: 150, // Force absolute safe Y anchor placement
+        x: isDashboard ? undefined : 150, // Let Electron center it if it's dashboard, or set position
+        y: isDashboard ? undefined : 150,
         frame: false,
         transparent: true,
         hasShadow: true, // Re-enable window shadows to allow frame drawing initialization
-        alwaysOnTop: true,
-        resizable: config.windowDefaults?.resizable ?? true,
+        alwaysOnTop: isDashboard ? false : (config.windowDefaults?.alwaysOnTop ?? true),
+        resizable: true,
         icon: path.resolve(config.icons.taskbarIcon),
         title: config.appName,
         webPreferences: {
@@ -381,6 +384,9 @@ function createWidgetWindow(targetWidgetId = null) {
 
     // 3. SHOW WINDOW INSTANTLY WHEN READY TO PREVENT BLANK RENDERS
     win.once('ready-to-show', () => {
+        if (isDashboard) {
+            win.center();
+        }
         win.show();
         win.focus();
     });

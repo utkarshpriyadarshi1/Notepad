@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS sticky_widgets (
     geometry_height INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_pinned INTEGER DEFAULT 0,
     FOREIGN KEY(parent_folder_uuid) REFERENCES sticky_folders(folder_uuid) ON DELETE CASCADE
 );
 
