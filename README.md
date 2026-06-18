@@ -1,6 +1,6 @@
-# Smritipatra 📝
+# Notepad 📝
 
-**Smritipatra** is an offline, lightweight desktop sticky note widget and task management tool. It is designed to act as a distraction-free, persistent desktop notepad that integrates checklists and Markdown rendering inside sleek, customizable glassmorphism widgets.
+**Notepad** is an offline, lightweight desktop sticky note widget and task management tool. It is designed to act as a distraction-free, persistent desktop notepad that integrates checklists and Markdown rendering inside sleek, customizable glassmorphism widgets.
 
 ---
 
