@@ -7,7 +7,7 @@ Smritipatra is a local-first sticky notes client. This document catalogues all c
 ## 1. Window Sizing & Dashboard Integration
 
 ### 1.1 Centralized Preferences Dashboard
-- **Auto-open on Startup**: The app always launches directly into the expanded dashboard mode (sized at a standard Windows application footprint of `920x550`, centered and non-intrusive).
+- **Auto-open on Startup**: The app always launches directly into the expanded dashboard mode (sized at a standard Windows application footprint of `1000x650`, centered and non-intrusive).
 - **Tabbed Settings Overlay**: Accessible from the gear icon in the header, splitting features into:
   - **Preferences**: Allows theme presets configuration, database backups (import/export), and engine service start/stop triggers.
   - **Widgets Manager**: Lists all notebooks (folders) and notes, allowing users to show, hide, pin, rename, or delete specific note instances from a single canvas.
