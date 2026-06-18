@@ -8,6 +8,15 @@ const {setupFilesystemHandlers} = require('./fsControllers');
 const {setupServiceHandlers, getWorkerStatus} = require('./serviceController');
 const {writeLog, setupLoggerIPC} = require('./logger'); // 👈 Import Logging system
 
+// Helper to resolve icon asset paths correctly in both development and production
+function getAssetPath(configPath) {
+    if (!configPath) return '';
+    const baseName = path.basename(configPath);
+    return app.isPackaged
+        ? path.join(process.resourcesPath, 'assets', baseName)
+        : path.join(__dirname, 'assets', baseName);
+}
+
 let tray = null;
 // app.disableHardwareAcceleration();  // Forces alpha layer glass transparency rendering
 
@@ -202,7 +211,7 @@ app.whenReady().then(() => {
     writeLog(app, 'INFO', 'App_Lifecycle', `${config.appName} subsystem boots completely offline.`);
 
     createWidgetWindow();
-    tray = new Tray(path.resolve(config.icons.trayIcon));
+    tray = new Tray(getAssetPath(config.icons.trayIcon));
     tray.setToolTip(config.appName);
     rebuildTrayMenu();
 
@@ -402,7 +411,7 @@ function createWidgetWindow(targetWidgetId = null) {
         hasShadow: true,
         alwaysOnTop,
         resizable,
-        icon: path.resolve(config.icons.taskbarIcon),
+        icon: getAssetPath(config.icons.taskbarIcon),
         title: config.appName,
         webPreferences: {
             nodeIntegration: true, contextIsolation: false,
