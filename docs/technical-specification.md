@@ -1,6 +1,6 @@
 # Technical Specification & Requirements
 
-Smritipatra is an offline-first, Electron-based desktop productivity client designed to manage sticky widgets, notebooks (folders), tasks, and markdown notes. It utilizes WebAssembly SQLite to provide lightweight, relational data management without local DB server overhead.
+Smritipatra is an offline-first, Electron-based desktop productivity client designed to manage notebook folders, sticky notes, tasks, events, expenses, and markdown logs. It utilizes WebAssembly SQLite to provide lightweight, relational data management without local DB server overhead.
 
 ---
 
@@ -40,17 +40,17 @@ graph TD
   - Integrates the taskbar tray context menu (`rebuildTrayMenu`), permitting note creation and rescue actions.
 
 ### 1.2 Frontend Layer (React + Vite Client)
-- **File Hierarchy**: Located in `frontend/`. Primary component is `App.jsx` with tabbed settings components inside `components/settings/`.
+- **File Hierarchy**: Located in `frontend/`. Primary component is `App.jsx` with settings and workspace components inside `components/`.
 - **Role**:
-  - Controls layout routing (Toggleable Task List vs. Markdown editor canvas).
+  - Controls layout routing (MainNotepadView dashboard vs. StickyNoteView windows).
   - Handles theme-specific skin parameters (Glassmorphism theme overlays and custom colors).
-  - Connects to SQLite database events using standard React states.
+  - Connects to SQLite database events using standard React hooks and states.
 
 ### 1.3 Offline SQLite Storage Engine
 - **Library**: `sql.js` (WebAssembly build of SQLite3).
 - **Process**:
   - The SQLite database file (`smritipatra_data.db`) is read from user data directories as a binary stream and loaded into WASM memory.
-  - Operations (inserting tasks, pinning widgets, renaming folders) run synchronously in memory.
+  - Operations (inserting tasks, logging expenses, recording events, pinning notes) run synchronously in memory.
   - Changes are serialized back to a `Uint8Array` binary block and pushed via Electron IPC to the disk.
 
 ---
@@ -72,7 +72,7 @@ graph TD
 
 ## 3. Database Schema Specification
 
-The database contains the following tables and relation constraints (Version 6):
+The database contains the following tables and relation constraints (Version 10):
 
 ```mermaid
 erDiagram
@@ -87,30 +87,59 @@ erDiagram
         DATETIME created_at
         DATETIME updated_at
     }
-    sticky_widgets {
-        TEXT widget_uuid PK
+    sticky_notes {
+        TEXT note_uuid PK
         TEXT parent_folder_uuid FK
-        TEXT widget_title
-        TEXT widget_theme_preset
-        TEXT widget_view_mode
-        TEXT widget_markdown_content
+        TEXT note_title
+        TEXT note_theme_preset
+        TEXT note_view_mode
+        TEXT note_markdown_content
         INTEGER placement_x_pos
         INTEGER placement_y_pos
         INTEGER geometry_width
         INTEGER geometry_height
+        INTEGER is_flagged
+        INTEGER sort_order
+        INTEGER is_pinned
         DATETIME created_at
         DATETIME updated_at
-        INTEGER is_pinned
     }
     task_items {
         TEXT item_uuid PK
-        TEXT parent_widget_uuid FK
+        TEXT parent_note_uuid FK
         TEXT item_text_payload
         INTEGER is_marked_completed
         DATETIME created_at
         DATETIME updated_at
     }
+    events_log {
+        TEXT event_uuid PK
+        TEXT parent_note_uuid FK
+        TEXT event_text
+        DATETIME event_time
+        DATETIME created_at
+    }
+    expense_log {
+        TEXT expense_uuid PK
+        TEXT parent_note_uuid FK
+        REAL expense_amount
+        TEXT expense_category
+        TEXT expense_description
+        TEXT expense_date
+        DATETIME created_at
+    }
+    vcs_commits {
+        TEXT commit_uuid PK
+        TEXT parent_note_uuid FK
+        TEXT commit_message
+        TEXT note_title_snapshot
+        TEXT note_content_snapshot
+        DATETIME created_at
+    }
     
-    sticky_folders ||--o{ sticky_widgets : contains
-    sticky_widgets ||--o{ task_items : contains
+    sticky_folders ||--o{ sticky_notes : contains
+    sticky_notes ||--o{ task_items : contains
+    sticky_notes ||--o{ events_log : contains
+    sticky_notes ||--o{ expense_log : contains
+    sticky_notes ||--o{ vcs_commits : contains
 ```
