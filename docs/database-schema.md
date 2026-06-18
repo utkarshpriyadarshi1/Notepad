@@ -1,6 +1,6 @@
 # Database Schema (Version 10)
 
-Smritipatra Desktop stores information offline in SQLite. The unified database schema contains the following tables and relation constraints:
+Notepad Desktop stores information offline in SQLite. The unified database schema contains the following tables and relation constraints:
 
 ---
 

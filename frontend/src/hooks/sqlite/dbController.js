@@ -1,7 +1,7 @@
 /* eslint-env node */
 import initSqlJs from 'sql.js';
 
-const LATEST_SCHEMA_VERSION = 10;
+const LATEST_SCHEMA_VERSION = 11;
 
 export async function initializeLocalDatabase(ipcRenderer, defaultName, currentWindowId = 'main_notepad') {
     try {
@@ -16,6 +16,11 @@ export async function initializeLocalDatabase(ipcRenderer, defaultName, currentW
             activeDb = new SQL.Database();
             buildNormalizedSchema(activeDb, defaultName, currentWindowId);
         }
+        // Optimize WASM-SQLite memory utilization for cascading widget instances
+        activeDb.run(`
+            PRAGMA cache_size = -512;
+            PRAGMA temp_store = MEMORY;
+        `);
         return activeDb;
     } catch (err) {
         if (ipcRenderer) {
@@ -86,6 +91,10 @@ function buildNormalizedSchema(db, defaultName, currentWindowId) {
             FOREIGN KEY(parent_note_uuid) REFERENCES sticky_notes(note_uuid) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_vcs_parent_note ON vcs_commits(parent_note_uuid);
+        CREATE INDEX IF NOT EXISTS idx_notes_parent_folder ON sticky_notes(parent_folder_uuid);
+        CREATE INDEX IF NOT EXISTS idx_tasks_parent_note ON task_items(parent_note_uuid);
+        CREATE INDEX IF NOT EXISTS idx_events_parent_note ON events_log(parent_note_uuid);
+        CREATE INDEX IF NOT EXISTS idx_expenses_parent_note ON expense_log(parent_note_uuid);
     `);
 
     // Create default folder
@@ -255,6 +264,21 @@ function executeDatabaseUpgrades(db, defaultName, currentWindowId) {
                     console.log("⚡ [Migration] Added is_pinned column to sticky_notes table.");
                 } catch (e) {
                     console.warn("Migration: column is_pinned might already exist on sticky_notes:", e);
+                }
+            }
+
+            // Upgrade to 11: Add query optimization indexes on foreign key columns
+            if (activeVersion < 11) {
+                try {
+                    db.run(`
+                        CREATE INDEX IF NOT EXISTS idx_notes_parent_folder ON sticky_notes(parent_folder_uuid);
+                        CREATE INDEX IF NOT EXISTS idx_tasks_parent_note ON task_items(parent_note_uuid);
+                        CREATE INDEX IF NOT EXISTS idx_events_parent_note ON events_log(parent_note_uuid);
+                        CREATE INDEX IF NOT EXISTS idx_expenses_parent_note ON expense_log(parent_note_uuid);
+                    `);
+                    console.log("⚡ [Migration] Added indexes on foreign key columns for query optimization.");
+                } catch (e) {
+                    console.error("Migration: failed to add indexes:", e);
                 }
             }
 

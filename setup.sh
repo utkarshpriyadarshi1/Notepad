@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 echo "==================================================="
-echo "  Smritipatra Development Environment Setup"
+echo "  Notepad Development Environment Setup"
 echo "==================================================="
 echo ""
 

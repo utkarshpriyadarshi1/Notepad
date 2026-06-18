@@ -1,7 +1,7 @@
 {
-  "name": "smritipatra-desktop",
+  "name": "notepad-desktop",
   "version": "1.0.3",
-  "description": "Offline sticky notes and task management widgets",
+  "description": "Offline Open Source Cross Platform Notepad Desktop App",
   "main": "backend/main.js",
   "type": "commonjs",
   "scripts": {
@@ -31,8 +31,8 @@
     "wait-on": "^9.0.10"
   },
   "build": {
-    "appId": "com.smritipatra.desktop",
-    "productName": "Smritipatra",
+    "appId": "com.notepad.desktop",
+    "productName": "Notepad",
     "files": [
       "dist/**/*",
       {

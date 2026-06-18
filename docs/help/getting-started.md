@@ -1,9 +1,9 @@
-# Getting Started with Smritipatra
+# Getting Started with Notepad
 
-Welcome to **Smritipatra**, a modern, offline-first productivity workspace.
+Welcome to **Notepad**, a modern, offline-first productivity workspace.
 
 ## 🖥️ Application Type & Standalone Mode
-Smritipatra is built strictly as a **standalone desktop application** using Electron, React, and SQLite. It operates **100% offline**, ensuring your notes, tasks, and markdown notebooks never leave your local device. There is no web portal or cloud requirement, guaranteeing complete privacy and zero latency.
+Notepad is built strictly as a **standalone desktop application** using Electron, React, and SQLite. It operates **100% offline**, ensuring your notes, tasks, and markdown notebooks never leave your local device. There is no web portal or cloud requirement, guaranteeing complete privacy and zero latency.
 
 ## 🚀 Supported Platforms & Devices
 

@@ -1,15 +1,15 @@
 # setup-cert.ps1
 # Generate a Windows self-signed code signing certificate for app packaging
 
-$certName = "SmritipatraDevelopmentCert"
+$certName = "NotepadDevelopmentCert"
 $certPath = Join-Path $PSScriptRoot "development-cert.pfx"
-$password = ConvertTo-SecureString "SmritipatraTempPassword123" -AsPlainText -Force
+$password = ConvertTo-SecureString "NotepadTempPassword123" -AsPlainText -Force
 
 Write-Host "Creating self-signed code-signing certificate: $certName..." -ForegroundColor Cyan
 
 try {
     # Generate the certificate
-    $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=$certName" -KeyUsage DigitalSignature -FriendlyName "Smritipatra Dev Certificate" -NotAfter (Get-Date).AddYears(5)
+    $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=$certName" -KeyUsage DigitalSignature -FriendlyName "Notepad Dev Certificate" -NotAfter (Get-Date).AddYears(5)
     
     # Export the certificate as PFX
     Write-Host "Exporting certificate to: $certPath..." -ForegroundColor Cyan

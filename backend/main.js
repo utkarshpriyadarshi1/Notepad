@@ -149,7 +149,7 @@ app.whenReady().then(() => {
 
     ipcMain.handle('read-log-file', async () => {
         try {
-            const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');
+            const logFilePath = path.join(app.getPath('userData'), 'notepad_runtime.log');
             if (fs.existsSync(logFilePath)) {
                 const content = await fs.promises.readFile(logFilePath, 'utf8');
                 return content;
@@ -164,7 +164,7 @@ app.whenReady().then(() => {
     ipcMain.handle('get-cache-stats', async () => {
         try {
             const cacheSize = await session.defaultSession.getCacheSize();
-            const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');
+            const logFilePath = path.join(app.getPath('userData'), 'notepad_runtime.log');
             let logSize = 0;
             if (fs.existsSync(logFilePath)) {
                 logSize = fs.statSync(logFilePath).size;
@@ -191,7 +191,7 @@ app.whenReady().then(() => {
                 await session.defaultSession.clearCache();
             }
             if (types.logFile) {
-                const logFilePath = path.join(app.getPath('userData'), 'smritipatra_runtime.log');
+                const logFilePath = path.join(app.getPath('userData'), 'notepad_runtime.log');
                 if (fs.existsSync(logFilePath)) {
                     await fs.promises.writeFile(logFilePath, '', 'utf8');
                 }

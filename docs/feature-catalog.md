@@ -1,6 +1,6 @@
-# Smritipatra - Feature Catalog
+# Notepad - Feature Catalog
 
-Smritipatra is a local-first sticky notes client. This document catalogues all core features, options, and capabilities currently implemented in the app.
+Notepad is a local-first sticky notes client. This document catalogues all core features, options, and capabilities currently implemented in the app.
 
 ---
 

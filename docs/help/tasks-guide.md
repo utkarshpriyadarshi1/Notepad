@@ -1,6 +1,6 @@
 # Tasks & Checklist Guide
 
-Smritipatra lets you turn any sticky note widget into an interactive checklist.
+Notepad lets you turn any sticky note widget into an interactive checklist.
 
 ## 📋 Checklist Operations
 - **Add Tasks**: Type your task in the input box and click the **Plus (+)** button or press `Enter` to append it.

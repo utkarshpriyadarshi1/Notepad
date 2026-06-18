@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the **Smritipatra** project will be documented in this file.
+All notable changes to the **Notepad** project will be documented in this file.
 
 ## [1.0.3] - 2026-06-18
 ### Added

@@ -57,13 +57,13 @@ All compiled installers will be written to `frontend/dist/`.
 ## 📖 Documentation Reference
 
 For deeper technical insight, consult our documentation folder:
-- [Architecture Overview](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/architecture-overview.md)
-- [Database Schema](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/database-schema.md)
-- [Development Setup](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/development-setup.md)
-- [Platform Specifications](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/docs/features-platforms.md)
+- [Architecture Overview](docs/architecture-overview.md)
+- [Database Schema](docs/database-schema.md)
+- [Development Setup](docs/development-setup.md)
+- [Platform Specifications](docs/features-platforms.md)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](file:///c:/Users/utkar/Desktop/Projects/e-smritipatra/LICENSE).
+This project is licensed under the [MIT License](LICENSE).

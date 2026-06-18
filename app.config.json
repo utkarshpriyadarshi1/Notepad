@@ -1,9 +1,9 @@
 {
-  "appName": "Smritipatra",
-  "heading": "Smritipatra",
-  "subtitle": "Offline sticky notes and task management widgets",
+  "appName": "Notepad",
+  "heading": "Notepad",
+  "subtitle": "Offline Open Source Cross Platform Notepad Desktop App",
   "defaultTitle": "New Note",
-  "dbFileName": "smritipatra_data.db",
+  "dbFileName": "notepad_data.db",
   "colorThemes": {
     "glass": "bg-white/40 border-white/20 text-slate-900 header-white/30 glass-effect",
     "white": "bg-white/40 border-white/20 text-slate-900 header-white/30 glass-effect",
@@ -13,7 +13,7 @@
     "blue": "bg-sky-200/90 border-sky-300/50 text-sky-900 header-sky-300/60",
     "green": "bg-emerald-200/90 border-emerald-300/50 text-emerald-900 header-emerald-300/60"
   },
-  "taskManagerServiceName": "Smritipatra_Service",
+  "taskManagerServiceName": "Notepad_Service",
   "appVersion": "1.0.3",
   "icons": {
     "appIcon": "./backend/assets/app-icon.ico",

@@ -1,6 +1,6 @@
 export const translations = {
     en: {
-        appName: "Smritipatra",
+        appName: "Notepad",
         preferences: "Preferences",
         widgets: "Widgets",
         help: "Help",
@@ -17,8 +17,8 @@ export const translations = {
         clearCache: "Clear Cache",
         clearLogs: "Clear Logs",
         clear: "Clear",
-        helpTitle: "Smritipatra Help & Support",
-        helpText: "Smritipatra is an offline sticky notes and task management application. Click on the title to edit its name. Toggle modes to manage lists or type markdown files.",
+        helpTitle: "Notepad Help & Support",
+        helpText: "Notepad is an offline Open Source Cross Platform Notepad Desktop App. Click on the title to edit its name. Toggle modes to manage lists or type markdown files.",
         reportBug: "Report Issue on GitHub",
         close: "Close",
         consoleLogs: "Console Runtime Logs",
@@ -56,7 +56,7 @@ export const translations = {
         formatLabel: "Format:"
     },
     hi: {
-        appName: "स्मृतिपात्र",
+        appName: "नोटपैड",
         preferences: "प्राथमिकताएं",
         widgets: "विजेट्स",
         help: "सहायता",
@@ -73,8 +73,8 @@ export const translations = {
         clearCache: "कैश साफ करें",
         clearLogs: "लॉग साफ करें",
         clear: "साफ करें",
-        helpTitle: "स्मृतिपात्र सहायता एवं समर्थन",
-        helpText: "स्मृतिपात्र एक ऑफ़लाइन स्टिकी नोट्स और कार्य प्रबंधन एप्लिकेशन है। इसका नाम बदलने के लिए शीर्षक पर क्लिक करें। चेकलिस्ट प्रबंधित करने या मार्कडाउन फ़ाइलें टाइप करने के लिए मोड बदलें।",
+        helpTitle: "नोटपैड सहायता एवं समर्थन",
+        helpText: "नोटपैड एक ऑफ़लाइन, ओपन-सोर्स, क्रॉस-प्लेटफ़ॉर्म नोटपैड डेस्कटॉप एप्लिकेशन है। इसका नाम बदलने के लिए शीर्षक पर क्लिक करें। चेकलिस्ट प्रबंधित करने या मार्कडाउन फ़ाइलें टाइप करने के लिए मोड बदलें।",
         reportBug: "GitHub पर समस्या रिपोर्ट करें",
         close: "बंद करें",
         consoleLogs: "कंसोल रनटाइम लॉग्स",

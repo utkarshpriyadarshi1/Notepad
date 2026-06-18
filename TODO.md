@@ -1,6 +1,6 @@
-# Smritipatra - TODO Tracker
+# Notepad - TODO Tracker
 
-Track pending tasks, improvements, and achievements for the Smritipatra application.
+Track pending tasks, improvements, and achievements for the Notepad application.
 
 ## 🏆 Achievements (Completed)
 - [x] **Centralized Configuration**: All metadata consolidated into root-level `app.config.json`.

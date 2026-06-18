@@ -1,6 +1,6 @@
 # Markdown Editing Guide
 
-Smritipatra features a fully-featured raw text editor with a Markdown renderer.
+Notepad features a fully-featured raw text editor with a Markdown renderer.
 
 ## ✍️ Writing Markdown
 Use standard Markdown syntax in the editor to structure your notes:

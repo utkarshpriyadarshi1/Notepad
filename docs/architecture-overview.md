@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Smritipatra Desktop is an offline desktop widget utility application. It is architected as a decoupled system containing two primary modules:
+Notepad Desktop is an offline desktop widget utility application. It is architected as a decoupled system containing two primary modules:
 
 ## 1. Backend Layer (Electron Main Process)
 The main process coordinates OS-level operations:

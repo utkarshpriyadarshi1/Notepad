@@ -1153,7 +1153,7 @@ export default function MainNotepadView({
             <div className="h-9 bg-slate-800 text-slate-200 flex items-center justify-between px-4 select-none flex-shrink-0" style={{ WebkitAppRegion: 'drag' }}>
                 <div className="flex items-center gap-2">
                     <FontAwesomeIcon icon={faBook} className="text-slate-400 text-xs" />
-                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-350">Personal Log</span>
+                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-350">Notepad</span>
                 </div>
                 <div className="flex items-center gap-1.5 no-drag">
                     <button 
@@ -2103,7 +2103,7 @@ export default function MainNotepadView({
                 <SettingsPanel
                     isOpen={settingsOpen}
                     onClose={() => setSettingsOpen(false)}
-                    appName="Personal Log"
+                    appName="Notepad"
                     onResetDatabase={resetDatabase}
                     onExport={triggerJsonExport}
                     onImport={triggerJsonImport}

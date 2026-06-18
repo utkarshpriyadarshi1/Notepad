@@ -1,12 +1,12 @@
 # Technical Specification & Requirements
 
-Smritipatra is an offline-first, Electron-based desktop productivity client designed to manage notebook folders, sticky notes, tasks, events, expenses, and markdown logs. It utilizes WebAssembly SQLite to provide lightweight, relational data management without local DB server overhead.
+Notepad is an offline-first, Electron-based desktop productivity client designed to manage notebook folders, sticky notes, tasks, events, expenses, and markdown logs. It utilizes WebAssembly SQLite to provide lightweight, relational data management without local DB server overhead.
 
 ---
 
 ## 1. System Architecture
 
-Smritipatra's architecture separates the desktop system wrapper from the reactive client canvas:
+Notepad's architecture separates the desktop system wrapper from the reactive client canvas:
 
 ```mermaid
 graph TD
@@ -49,7 +49,7 @@ graph TD
 ### 1.3 Offline SQLite Storage Engine
 - **Library**: `sql.js` (WebAssembly build of SQLite3).
 - **Process**:
-  - The SQLite database file (`smritipatra_data.db`) is read from user data directories as a binary stream and loaded into WASM memory.
+  - The SQLite database file (`notepad_data.db`) is read from user data directories as a binary stream and loaded into WASM memory.
   - Operations (inserting tasks, logging expenses, recording events, pinning notes) run synchronously in memory.
   - Changes are serialized back to a `Uint8Array` binary block and pushed via Electron IPC to the disk.
 
@@ -66,7 +66,7 @@ graph TD
 ### 2.2 Client Environment Requirements
 - **Disk Space**: ~200 MB for installation binaries + data files.
 - **Memory**: ~120 MB RAM per active note window (tuned V8 constraints).
-- **Database File Location**: `%APPDATA%/Smritipatra/smritipatra_data.db` (on Windows).
+- **Database File Location**: `%APPDATA%/Notepad/notepad_data.db` (on Windows).
 
 ---
 

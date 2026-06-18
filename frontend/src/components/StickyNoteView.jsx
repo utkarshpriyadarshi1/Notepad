@@ -327,7 +327,7 @@ export default function StickyNoteView({
                     <SettingsPanel
                         isOpen={settingsOpen}
                         onClose={() => setSettingsOpen(false)}
-                        appName="Personal Log Floating Widget"
+                        appName="Notepad Floating Widget"
                         onResetDatabase={resetDatabase}
                         onExport={triggerJsonExport}
                         onImport={triggerJsonImport}
