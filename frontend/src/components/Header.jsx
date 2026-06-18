@@ -76,6 +76,7 @@ export default function Header({
     };
 
     const headerBgColor = noteColor.split(' ').find(cls => cls.startsWith('header-'))?.replace('header-', 'bg-') || 'bg-amber-300';
+    const isDarkTheme = noteColor.includes('text-white');
 
     return (<div
             style={{WebkitAppRegion: isEditing ? 'no-drag' : 'drag'}} // Disable dragging during active typing
@@ -84,7 +85,7 @@ export default function Header({
             <div style={{WebkitAppRegion: 'no-drag'}} className="flex-1 flex items-center min-w-0 pr-2">
                 <div
                     onMouseDown={handleDragStart}
-                    className="group relative flex items-center mr-2 cursor-grab active:cursor-grabbing text-slate-700/60 hover:text-slate-900 transition-colors p-1 flex-shrink-0"
+                    className={`group relative flex items-center mr-2 cursor-grab active:cursor-grabbing transition-colors p-1 flex-shrink-0 ${isDarkTheme ? 'text-white/60 hover:text-white' : 'text-slate-700/60 hover:text-slate-900'}`}
                 >
                     <FontAwesomeIcon icon={faGripVertical} className="text-[11px]" />
                 </div>
@@ -101,13 +102,13 @@ export default function Header({
                             className="w-full text-xs font-bold uppercase tracking-wider bg-white/50 border border-black/10 px-2 py-0.5 rounded focus:outline-none focus:bg-white text-slate-800"
                         />
                         <button onClick={handleSave}
-                                className="text-[10px] text-slate-700 hover:text-black p-1 cursor-pointer">
+                                className={`text-[10px] p-1 cursor-pointer ${isDarkTheme ? 'text-white hover:text-white/80' : 'text-slate-700 hover:text-black'}`}>
                             <FontAwesomeIcon icon={faCheck}/>
                         </button>
                     </div>) : (<div className="group relative flex items-center min-w-0">
                         <span
                             onClick={() => setIsEditing(true)}
-                            className="text-xs font-bold uppercase tracking-wider opacity-75 hover:opacity-100 hover:bg-black/5 px-1.5 py-0.5 rounded cursor-pointer transition-all truncate block select-none"
+                            className={`text-xs font-bold uppercase tracking-wider opacity-75 hover:opacity-100 hover:bg-black/5 px-1.5 py-0.5 rounded cursor-pointer transition-all truncate block select-none ${isDarkTheme ? 'text-white' : 'text-slate-800'}`}
                         >
                             {title}
                         </span>
@@ -119,7 +120,9 @@ export default function Header({
                 <button
                     onClick={onToggleAlwaysOnTop}
                     className={`text-xs transition-all p-1 cursor-pointer ${
-                        alwaysOnTop ? 'opacity-100 text-slate-900 scale-110' : 'opacity-50 hover:opacity-85 text-slate-700'
+                        alwaysOnTop 
+                            ? (isDarkTheme ? 'opacity-100 text-white scale-110' : 'opacity-100 text-slate-900 scale-110') 
+                            : (isDarkTheme ? 'opacity-50 hover:opacity-85 text-white/70' : 'opacity-50 hover:opacity-85 text-slate-700')
                     }`}
                 >
                     <FontAwesomeIcon icon={faThumbtack} className={alwaysOnTop ? "rotate-45" : ""} />
@@ -127,42 +130,42 @@ export default function Header({
 
                 <button
                     onClick={onToggleDarkMode}
-                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                    className={`text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer ${isDarkTheme ? 'text-white' : 'text-slate-700'}`}
                 >
                     <FontAwesomeIcon icon={isDarkMode ? faSun : faMoon} />
                 </button>
 
                 <button
                     onClick={onToggleLogs}
-                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                    className={`text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer ${isDarkTheme ? 'text-white' : 'text-slate-700'}`}
                 >
                     <FontAwesomeIcon icon={faTerminal} />
                 </button>
 
                 <button
                     onClick={onToggleHelp}
-                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                    className={`text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer ${isDarkTheme ? 'text-white' : 'text-slate-700'}`}
                 >
                     <FontAwesomeIcon icon={faQuestionCircle} />
                 </button>
 
                 <button
                     onClick={onToggleSettings}
-                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                    className={`text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer ${isDarkTheme ? 'text-white' : 'text-slate-700'}`}
                 >
                     <FontAwesomeIcon icon={faGear} />
                 </button>
 
                 <button
                     onClick={() => ipcRenderer ? ipcRenderer.send('create-note') : alert("Electron only.")}
-                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                    className={`text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer ${isDarkTheme ? 'text-white' : 'text-slate-700'}`}
                 >
                     <FontAwesomeIcon icon={faPlus}/>
                 </button>
 
                 <button
                     onClick={() => window.close()}
-                    className="text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer text-slate-700"
+                    className={`text-xs opacity-50 hover:opacity-100 transition-opacity p-1 cursor-pointer ${isDarkTheme ? 'text-white' : 'text-slate-700'}`}
                 >
                     <FontAwesomeIcon icon={faXmark}/>
                 </button>

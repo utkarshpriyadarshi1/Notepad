@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-    faBook, 
+    faFilePen, 
     faFolder, 
     faFolderOpen, 
     faTrashCan, 
@@ -280,7 +280,7 @@ export default function WidgetTab({
                                     onClick={() => setActiveFolderUuid(f.uuid)}
                                     className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
                                         isFolderActive
-                                            ? 'bg-slate-800 text-white shadow-sm font-semibold'
+                                            ? 'bg-indigo-600 text-white shadow-sm font-semibold'
                                             : 'text-slate-600 hover:bg-black/5 font-medium'
                                     }`}
                                 >
@@ -527,7 +527,7 @@ export default function WidgetTab({
             <div className="flex-1 bg-slate-100/30 flex flex-col p-4 overflow-hidden min-h-0 select-text">
                 {!selectedWidget ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 opacity-60 gap-1.5">
-                        <FontAwesomeIcon icon={faBook} className="text-3xl" />
+                        <FontAwesomeIcon icon={faFilePen} className="text-3xl" />
                         <span className="font-semibold text-[10px] uppercase tracking-wider">
                             {t('selectTheme')}
                         </span>

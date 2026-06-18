@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-    faBook, 
+    faFilePen, 
     faFolder, 
     faFolderOpen, 
     faTrashCan, 
@@ -263,19 +263,19 @@ export default function MainNotepadView({
     };
 
     const editorBodyBgClasses = {
-        yellow: 'bg-amber-50/20 border-amber-200/30 dark:bg-amber-955/5',
-        pink: 'bg-rose-50/20 border-rose-200/30 dark:bg-rose-955/5',
-        red: 'bg-rose-50/20 border-rose-200/30 dark:bg-rose-955/5',
-        blue: 'bg-sky-50/20 border-sky-200/30 dark:bg-sky-955/5',
-        green: 'bg-emerald-50/20 border-emerald-200/30 dark:bg-emerald-955/5'
+        yellow: 'bg-amber-50/50 border-amber-200/30 dark:bg-amber-955/5',
+        pink: 'bg-rose-50/50 border-rose-200/30 dark:bg-rose-955/5',
+        red: 'bg-rose-50/50 border-rose-200/30 dark:bg-rose-955/5',
+        blue: 'bg-sky-50/50 border-sky-200/30 dark:bg-sky-955/5',
+        green: 'bg-emerald-50/50 border-emerald-200/30 dark:bg-emerald-955/5'
     };
 
     const cardBgClasses = {
-        yellow: 'bg-amber-50/50 border-amber-200/50 hover:border-amber-300 dark:bg-amber-955/10 dark:border-amber-900/30 dark:hover:border-amber-800',
-        pink: 'bg-rose-50/50 border-rose-200/50 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
-        red: 'bg-rose-50/50 border-rose-200/50 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
-        blue: 'bg-sky-50/50 border-sky-200/50 hover:border-sky-300 dark:bg-sky-955/10 dark:border-sky-900/30 dark:hover:border-sky-800',
-        green: 'bg-emerald-50/50 border-emerald-200/50 hover:border-emerald-300 dark:bg-emerald-955/10 dark:border-emerald-900/30 dark:hover:border-emerald-800'
+        yellow: 'bg-amber-50/90 border-amber-200/80 hover:border-amber-300 dark:bg-amber-955/10 dark:border-amber-900/30 dark:hover:border-amber-800',
+        pink: 'bg-rose-50/90 border-rose-200/80 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
+        red: 'bg-rose-50/90 border-rose-200/80 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
+        blue: 'bg-sky-50/90 border-sky-200/80 hover:border-sky-300 dark:bg-sky-955/10 dark:border-sky-900/30 dark:hover:border-sky-800',
+        green: 'bg-emerald-50/90 border-emerald-200/80 hover:border-emerald-300 dark:bg-emerald-955/10 dark:border-emerald-900/30 dark:hover:border-emerald-800'
     };
 
     const cardSelectedClasses = {
@@ -1148,52 +1148,52 @@ export default function MainNotepadView({
     const featuresActive = featureTasks || featureEvents || featureExpenses;
 
     return (
-        <div className="w-full h-full border border-black/15 rounded-2xl flex flex-col overflow-hidden bg-slate-900 shadow-2xl transition-all duration-300">
+        <div className={`w-full h-full border ${isDarkMode ? 'border-black/15 bg-slate-900 shadow-2xl text-slate-200' : 'border-black/10 bg-slate-50 shadow-xl text-slate-800'} rounded-2xl flex flex-col overflow-hidden transition-all duration-300`}>
             {/* Custom Titlebar */}
-            <div className="h-9 bg-slate-800 text-slate-200 flex items-center justify-between px-4 select-none flex-shrink-0" style={{ WebkitAppRegion: 'drag' }}>
+            <div className={`h-9 ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 border-b border-black/5 text-slate-700'} flex items-center justify-between px-4 select-none flex-shrink-0`} style={{ WebkitAppRegion: 'drag' }}>
                 <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faBook} className="text-slate-400 text-xs" />
-                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-350">Notepad</span>
+                    <FontAwesomeIcon icon={faFilePen} className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs`} />
+                    <span className={`text-[11px] font-bold tracking-wider uppercase ${isDarkMode ? 'text-slate-350' : 'text-slate-600'}`}>Notepad</span>
                 </div>
                 <div className="flex items-center gap-1.5 no-drag">
                     <button 
                         onClick={() => setSettingsOpen(true)}
-                        className="w-6 h-6 hover:bg-white/10 rounded flex items-center justify-center text-slate-355 hover:text-white transition-colors cursor-pointer"
+                        className={`w-6 h-6 ${isDarkMode ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'} rounded flex items-center justify-center transition-colors cursor-pointer`}
                         title="Preferences"
                     >
                         <FontAwesomeIcon icon={faGear} className="text-xs" />
                     </button>
                     <button 
                         onClick={() => setIsHelpOpen(true)}
-                        className="w-6 h-6 hover:bg-white/10 rounded flex items-center justify-center text-slate-355 hover:text-white transition-colors cursor-pointer"
+                        className={`w-6 h-6 ${isDarkMode ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'} rounded flex items-center justify-center transition-colors cursor-pointer`}
                         title="Help & Shortcuts"
                     >
                         <FontAwesomeIcon icon={faCircleQuestion} className="text-[11px]" />
                     </button>
                     <button 
                         onClick={onToggleDarkMode} 
-                        className="w-6 h-6 hover:bg-white/10 rounded flex items-center justify-center text-slate-355 hover:text-white transition-colors cursor-pointer"
+                        className={`w-6 h-6 ${isDarkMode ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'} rounded flex items-center justify-center transition-colors cursor-pointer`}
                         title="Toggle Day/Night Theme"
                     >
                         <FontAwesomeIcon icon={isDarkMode ? faSun : faMoon} className="text-xs" />
                     </button>
                     <button 
                         onClick={handleMinimize} 
-                        className="w-6 h-6 hover:bg-white/10 rounded flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+                        className={`w-6 h-6 ${isDarkMode ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'} rounded flex items-center justify-center transition-colors cursor-pointer`}
                         title="Minimize"
                     >
                         <FontAwesomeIcon icon={faMinus} className="text-[10px]" />
                     </button>
                     <button 
                         onClick={handleMaximize} 
-                        className="w-6 h-6 hover:bg-white/10 rounded flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+                        className={`w-6 h-6 ${isDarkMode ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-800'} rounded flex items-center justify-center transition-colors cursor-pointer`}
                         title="Maximize"
                     >
                         <FontAwesomeIcon icon={faExpand} className="text-[10px]" />
                     </button>
                     <button 
                         onClick={handleClose} 
-                        className="w-6 h-6 hover:bg-rose-600 rounded flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+                        className={`w-6 h-6 hover:bg-rose-600 rounded flex items-center justify-center transition-colors cursor-pointer ${isDarkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-white'}`}
                         title="Quit Application"
                     >
                         <FontAwesomeIcon icon={faXmark} className="text-[10px]" />
@@ -1206,7 +1206,7 @@ export default function MainNotepadView({
                 
                 {/* COLUMN 1: Notebook Folders */}
                 {foldersCollapsed ? (
-                    <div className="w-12 border-r border-black/5 dark:border-white/5 bg-slate-100/50 dark:bg-slate-950/20 flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0">
+                    <div className="w-12 border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0">
                         <div className="flex flex-col items-center gap-4 w-full">
                             <button
                                 onClick={() => setFoldersCollapsed(false)}
@@ -1231,7 +1231,7 @@ export default function MainNotepadView({
                                                 draggingOverFolderUuid === f.uuid ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10' : ''
                                             } ${
                                                 isFolderActive
-                                                    ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                                                    ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm'
                                                     : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
                                             }`}
                                         >
@@ -1256,16 +1256,16 @@ export default function MainNotepadView({
                         </div>
                     </div>
                 ) : (
-                    <div style={{ width: `${foldersWidth}px` }} className="border-r border-black/5 dark:border-white/5 bg-slate-100/50 dark:bg-slate-950/20 flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0">
+                    <div style={{ width: `${foldersWidth}px` }} className="border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0">
                         <div className="flex flex-col min-h-0">
                             <div className="flex items-center justify-between mb-3">
-                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                                    <FontAwesomeIcon icon={faFolder} className="text-slate-400 dark:text-slate-500 text-[10px]" />
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 flex items-center gap-1.5">
+                                    <FontAwesomeIcon icon={faFolder} className="text-slate-400 dark:text-slate-550 text-[10px]" />
                                     Notebooks
                                 </span>
                                 <button
                                     onClick={() => setFoldersCollapsed(true)}
-                                    className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-450 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                    className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-455 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
                                     title="Collapse notebook folders panel"
                                 >
                                     <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
@@ -1285,7 +1285,7 @@ export default function MainNotepadView({
                                                 draggingOverFolderUuid === f.uuid ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10' : ''
                                             } ${
                                                 isFolderActive
-                                                    ? 'bg-slate-805 text-white dark:bg-white dark:text-slate-900 shadow-sm font-semibold'
+                                                    ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm font-semibold'
                                                     : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 font-medium'
                                             }`}
                                         >
@@ -1453,7 +1453,7 @@ export default function MainNotepadView({
                         onDragOver={handleDragOverNotes}
                         onDragLeave={handleDragLeaveNotes}
                         onDrop={handleDropNotes}
-                        className={`w-12 border-r border-black/5 dark:border-white/5 bg-white dark:bg-slate-900/40 flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0 transition-all ${
+                        className={`w-12 border-r border-black/5 dark:border-white/5 ${isDarkMode ? 'bg-slate-900/40' : 'bg-slate-50/60'} flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0 transition-all ${
                             isDraggingOverNotes ? 'ring-2 ring-indigo-500 ring-dashed bg-indigo-50/10 dark:bg-indigo-950/10' : ''
                         }`}
                     >
@@ -1507,8 +1507,8 @@ export default function MainNotepadView({
                 ) : (
                     <div 
                         style={{ width: `${notesWidth}px` }} 
-                        className={`border-r border-black/5 dark:border-white/5 bg-white dark:bg-slate-900/40 flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0 transition-all ${
-                            isDraggingOverNotes ? 'ring-2 ring-indigo-500 ring-dashed bg-indigo-50/10 dark:bg-indigo-950/10' : ''
+                        className={`border-r border-black/5 dark:border-white/5 ${isDarkMode ? 'bg-slate-900/40' : 'bg-slate-50/60'} flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0 transition-all ${
+                            isDraggingOverNotes ? 'ring-2 ring-indigo-500 ring-dashed bg-indigo-50/10 dark:bg-indigo-955/10' : ''
                         }`}
                         onDragOver={handleDragOverNotes}
                         onDragLeave={handleDragLeaveNotes}
@@ -1870,7 +1870,7 @@ export default function MainNotepadView({
                 <div className={`flex-1 flex flex-col p-3 overflow-hidden min-h-0 select-text transition-all duration-350 ${selectedNote ? editorBodyBgClasses[selectedNote.theme] || 'bg-slate-100/30' : 'bg-slate-100/30'}`}>
                     {!selectedNote ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 opacity-60 gap-1.5 select-none">
-                            <FontAwesomeIcon icon={faBook} className="text-3xl" />
+                            <FontAwesomeIcon icon={faFilePen} className="text-3xl" />
                             <span className="font-semibold text-[10px] uppercase tracking-wider">
                                 Select a Log Entry to Edit
                             </span>

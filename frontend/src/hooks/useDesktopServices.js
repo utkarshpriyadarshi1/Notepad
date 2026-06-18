@@ -4,13 +4,7 @@ const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 
 export function useDesktopServices(db, saveToLocalStorage, refreshUiData, windowId) {
-    const [settingsOpen, setSettingsOpen] = useState(windowId === 'main_notepad');
-
-    useEffect(() => {
-        if (windowId === 'main_notepad') {
-            setSettingsOpen(true);
-        }
-    }, [windowId]);
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
     // Bounds Listener Configuration Setup
     useEffect(() => {

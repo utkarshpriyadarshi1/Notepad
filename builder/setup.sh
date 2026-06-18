@@ -23,7 +23,7 @@ fi
 
 echo ""
 echo "Installing dependencies in the frontend directory..."
-cd "$(dirname "$0")/frontend"
+cd "$(dirname "$0")/../frontend"
 npm install
 if [ $? -ne 0 ]; then
     echo "[ERROR] Failed to install npm dependencies."
@@ -37,8 +37,8 @@ echo "==================================================="
 echo "  Setup completed successfully!"
 echo "==================================================="
 echo "To run the application in development mode:"
-echo "  - Run './dev.sh' or run 'npm run dev' in the frontend directory."
+echo "  - Run 'builder/dev.sh' or run 'npm run dev' in the frontend directory."
 echo ""
 echo "To build and package the desktop app:"
-echo "  - Run './build.sh' or run 'npm run package' in the frontend directory."
+echo "  - Run 'builder/build.sh' or run 'npm run package' in the frontend directory."
 echo "==================================================="

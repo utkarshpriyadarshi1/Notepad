@@ -1,3 +1,3 @@
 @echo off
-cd "%~dp0frontend"
+cd "%~dp0..\frontend"
 npm run dev

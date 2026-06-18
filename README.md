@@ -19,14 +19,11 @@
 ## 📂 Project Directory Structure
 
 ```text
-├── packaging-builder/   # Automated version, certificate, build, & clean scripts
+├── builder/             # Onboarding, environment dev runners, build & package scripts
 ├── backend/             # Electron main process files (window manager, fs controllers)
 ├── frontend/            # React + Vite renderer source (UI components, styling, hooks)
 ├── docs/                # Architecture plans, db schemas, and setup instructions
-├── app.config.json      # Central configuration file for naming, versions, and icons
-├── dev.bat / dev.sh     # Root delegator scripts to run the dev environment
-├── build.bat / build.sh # Root delegator scripts to compile production packages
-└── clean.bat / clean.sh # Root delegator scripts to wipe build cache/directories
+└── app.config.json      # Central configuration file for naming, versions, and icons
 ```
 
 ---
@@ -37,18 +34,18 @@ Getting started with local development is straightforward:
 
 ### 1. Run the Onboarding Setup Script
 Run the script appropriate for your platform to install dependencies and configure credentials:
-- **Windows**: `setup.bat` (Generates and trusts a local self-signed code-signing certificate; requires Administrator privileges).
-- **macOS / Linux**: `chmod +x setup.sh && ./setup.sh`
+- **Windows**: `builder\setup.bat` (Generates and trusts a local self-signed code-signing certificate; requires Administrator privileges).
+- **macOS / Linux**: `chmod +x builder/setup.sh && ./builder/setup.sh`
 
 ### 2. Run the Development Server
 Launch Vite and Electron concurrently to start the hot-reloading app window:
-- **Windows**: `dev.bat`
-- **macOS / Linux**: `./dev.sh`
+- **Windows**: `builder\dev.bat`
+- **macOS / Linux**: `./builder/dev.sh`
 
 ### 3. Build & Package (Production)
 Compile the production installer packages:
-- **Windows**: `build.bat`
-- **macOS / Linux**: `./build.sh`
+- **Windows**: `builder\build.bat`
+- **macOS / Linux**: `./builder/build.sh`
 
 All compiled installers will be written to `frontend/dist/`.
 
