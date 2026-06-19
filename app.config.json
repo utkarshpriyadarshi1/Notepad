@@ -14,7 +14,7 @@
     "green": "bg-emerald-200/90 border-emerald-300/50 text-emerald-900 header-emerald-300/60"
   },
   "taskManagerServiceName": "Notepad_Service",
-  "appVersion": "1.0.3",
+  "appVersion": "1.0.4",
   "icons": {
     "appIcon": "./backend/assets/app-icon.ico",
     "trayIcon": "./backend/assets/app-logo.png",

@@ -34,71 +34,198 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { marked } from 'marked';
 
-// Custom lightweight regex-based syntax highlighter for preview rendering
+// Custom lightweight lexical syntax highlighter with bracket pair colorization for preview rendering
 const highlightCode = (code, lang) => {
     if (!code) return '';
-    let html = code
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    
     const l = (lang || '').toLowerCase();
     
-    if (l === 'json') {
-        return html
-            .replace(/(&quot;[^&]+?&quot;)(?=\s*:)/g, '<span class="text-sky-400 dark:text-sky-300 font-bold">$1</span>')
-            .replace(/(:\s*)(&quot;.*?&quot;)/g, '$1<span class="text-emerald-500 dark:text-emerald-400">$2</span>')
-            .replace(/\b(true|false|null|\d+(?:\.\d+)?)\b/g, (match) => {
-                if (match === 'true' || match === 'false') return `<span class="text-amber-500 dark:text-amber-400 font-semibold">${match}</span>`;
-                if (match === 'null') return `<span class="text-rose-500 dark:text-rose-400 italic">${match}</span>`;
-                return `<span class="text-violet-500 dark:text-violet-400">${match}</span>`;
-            });
-    }
+    let result = '';
+    let bracketDepth = 0;
     
-    if (['js', 'jsx', 'javascript', 'java', 'properties'].includes(l)) {
-        const keywords = /\b(const|let|var|function|return|import|export|class|if|else|for|while|do|switch|case|break|continue|default|try|catch|finally|throw|new|this|typeof|instanceof|extends|super|package|public|private|protected|static|final|void|int|double|float|long|short|byte|char|boolean|interface|implements)\b/g;
-        const numbers = /\b(\d+(?:\.\d+)?)\b/g;
+    // Bracket depth classes defined in index.css
+    const bracketColors = [
+        'bracket-depth-0',
+        'bracket-depth-1',
+        'bracket-depth-2',
+        'bracket-depth-3'
+    ];
+    
+    let i = 0;
+    const len = code.length;
+    
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+    
+    // Keywords for different formats
+    const jsKeywords = new Set(['const', 'let', 'var', 'function', 'return', 'import', 'export', 'class', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'default', 'try', 'catch', 'finally', 'throw', 'new', 'this', 'typeof', 'instanceof', 'extends', 'super', 'async', 'await', 'yield', 'package', 'public', 'private', 'protected', 'static', 'final', 'interface', 'implements', 'void']);
+    const javaKeywords = new Set(['public', 'private', 'protected', 'static', 'final', 'class', 'interface', 'extends', 'implements', 'new', 'this', 'super', 'package', 'import', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'default', 'try', 'catch', 'finally', 'throw', 'throws', 'void', 'int', 'double', 'float', 'long', 'short', 'byte', 'char', 'boolean', 'synchronized', 'volatile', 'transient', 'native', 'strictfp']);
+    const sqlKeywords = new Set(['select', 'from', 'where', 'insert', 'into', 'values', 'update', 'set', 'delete', 'create', 'table', 'drop', 'alter', 'index', 'join', 'inner', 'left', 'right', 'on', 'and', 'or', 'not', 'in', 'like', 'is', 'null', 'order', 'by', 'limit', 'group', 'having', 'count', 'sum', 'avg', 'min', 'max', 'distinct', 'as', 'union', 'all', 'primary', 'key', 'foreign', 'references', 'default', 'returning', 'with', 'recursive', 'offset']);
+    
+    const keywords = (l === 'java') ? javaKeywords : (l === 'sql') ? sqlKeywords : (['js', 'jsx', 'ts', 'tsx', 'javascript', 'typescript', 'properties'].includes(l)) ? jsKeywords : new Set();
+    
+    while (i < len) {
+        const char = code[i];
         
-        return html
-            .replace(/(\/\/.*)/g, '<span class="text-slate-500 dark:text-slate-450 italic">$1</span>')
-            .replace(keywords, '<span class="text-purple-500 dark:text-purple-400 font-semibold">$1</span>')
-            .replace(numbers, '<span class="text-amber-500 dark:text-amber-400">$1</span>')
-            .replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>');
+        // Single line comment //
+        if (char === '/' && code[i+1] === '/') {
+            let comment = '';
+            while (i < len && code[i] !== '\n') {
+                comment += code[i++];
+            }
+            result += `<span class="text-slate-500 dark:text-slate-450 italic">${escapeHtml(comment)}</span>`;
+            continue;
+        }
+        
+        // Multi-line comment /* */
+        if (char === '/' && code[i+1] === '*') {
+            let comment = '/*';
+            i += 2;
+            while (i < len) {
+                if (code[i] === '*' && code[i+1] === '/') {
+                    comment += '*/';
+                    i += 2;
+                    break;
+                }
+                comment += code[i++];
+            }
+            result += `<span class="text-slate-500 dark:text-slate-455 italic">${escapeHtml(comment)}</span>`;
+            continue;
+        }
+        
+        // Properties/YAML comment '#'
+        if ((l === 'yml' || l === 'yaml' || l === 'properties') && char === '#') {
+            let comment = '';
+            while (i < len && code[i] !== '\n') {
+                comment += code[i++];
+            }
+            result += `<span class="text-slate-500 dark:text-slate-455 italic">${escapeHtml(comment)}</span>`;
+            continue;
+        }
+        
+        // SQL comment '--'
+        if (l === 'sql' && char === '-' && code[i+1] === '-') {
+            let comment = '';
+            while (i < len && code[i] !== '\n') {
+                comment += code[i++];
+            }
+            result += `<span class="text-slate-500 dark:text-slate-455 italic">${escapeHtml(comment)}</span>`;
+            continue;
+        }
+        
+        // Strings
+        if (char === '"' || char === "'" || (char === '`' && ['js', 'jsx', 'ts', 'tsx', 'javascript', 'typescript'].includes(l))) {
+            const quote = char;
+            let str = quote;
+            i++;
+            while (i < len) {
+                const nextChar = code[i];
+                if (nextChar === '\\') {
+                    str += nextChar + (code[i+1] || '');
+                    i += 2;
+                } else if (nextChar === quote) {
+                    str += quote;
+                    i++;
+                    break;
+                } else {
+                    str += nextChar;
+                    i++;
+                }
+            }
+            result += `<span class="text-emerald-600 dark:text-emerald-450">${escapeHtml(str)}</span>`;
+            continue;
+        }
+        
+        // HTML / XML / JSX / TSX tags
+        if ((l === 'html' || l === 'xml' || l === 'jsx' || l === 'tsx') && char === '<') {
+            const remaining = code.substring(i);
+            const tagMatch = remaining.match(/^<\/?[a-zA-Z0-9\-:]+(\s+[a-zA-Z0-9\-:]+(=("[^"]*"|'[^']*'|[^\s>]+))?)*\s*\/?>/);
+            if (tagMatch) {
+                const tagContent = tagMatch[0];
+                i += tagContent.length;
+                
+                let highlightedTag = tagContent
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/^(&lt;\/?[a-zA-Z0-9\-:]+)/, '<span class="text-purple-500 dark:text-purple-400 font-semibold">$1</span>')
+                    .replace(/(\s[a-zA-Z0-9\-:]+=)/g, '<span class="text-sky-400 dark:text-sky-300 font-semibold">$1</span>')
+                    .replace(/(=)(&quot;.*?&quot;|&#39;.*?&#39;|[^\s&gt;]+)/g, '$1<span class="text-emerald-600 dark:text-emerald-400">$2</span>')
+                    .replace(/(&gt;)$/, '<span class="text-purple-500 dark:text-purple-400 font-semibold">$1</span>');
+                
+                result += highlightedTag;
+                continue;
+            }
+        }
+        
+        // Bracket Pair Colorization (depths 0-3)
+        if (char === '(' || char === '[' || char === '{') {
+            const colorClass = bracketColors[bracketDepth % bracketColors.length];
+            result += `<span class="${colorClass}">${escapeHtml(char)}</span>`;
+            bracketDepth++;
+            i++;
+            continue;
+        }
+        
+        if (char === ')' || char === ']' || char === '}') {
+            bracketDepth = Math.max(0, bracketDepth - 1);
+            const colorClass = bracketColors[bracketDepth % bracketColors.length];
+            result += `<span class="${colorClass}">${escapeHtml(char)}</span>`;
+            i++;
+            continue;
+        }
+        
+        // Key-Value separators in YAML
+        if ((l === 'yml' || l === 'yaml') && char === ':' && code[i+1] === ' ') {
+            result += `<span class="text-sky-400 dark:text-sky-300 font-bold">:</span> `;
+            i += 2;
+            let val = '';
+            while (i < len && code[i] !== '\n') {
+                val += code[i++];
+            }
+            result += `<span class="text-emerald-650 dark:text-emerald-450">${escapeHtml(val)}</span>`;
+            continue;
+        }
+        
+        // Identifiers / Keywords / Numbers
+        if (/[a-zA-Z_$]/.test(char)) {
+            let identifier = '';
+            while (i < len && /[a-zA-Z0-9_$]/.test(code[i])) {
+                identifier += code[i++];
+            }
+            const lowerId = identifier.toLowerCase();
+            if (keywords.has(lowerId)) {
+                result += `<span class="text-purple-500 dark:text-purple-400 font-semibold">${escapeHtml(identifier)}</span>`;
+            } else if (l === 'properties' && i < len && code[i] === '=') {
+                result += `<span class="text-sky-400 dark:text-sky-300 font-bold">${escapeHtml(identifier)}</span>`;
+            } else {
+                result += escapeHtml(identifier);
+            }
+            continue;
+        }
+        
+        // Numbers
+        if (/[0-9]/.test(char)) {
+            let num = '';
+            while (i < len && /[0-9.]/.test(code[i])) {
+                num += code[i++];
+            }
+            result += `<span class="text-amber-500 dark:text-amber-400">${escapeHtml(num)}</span>`;
+            continue;
+        }
+        
+        // Defaults
+        result += escapeHtml(char);
+        i++;
     }
     
-    if (l === 'css') {
-        return html
-            .replace(/([a-zA-Z\-]+)(?=\s*:)/g, '<span class="text-sky-400 dark:text-sky-300 font-semibold">$1</span>')
-            .replace(/(:\s*)([^;]+)(;)/g, '$1<span class="text-emerald-500 dark:text-emerald-400">$2</span>$3')
-            .replace(/([^{]+)(?=\s*\{)/g, '<span class="text-amber-500 dark:text-amber-400 font-bold">$1</span>')
-            .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="text-slate-500 dark:text-slate-450 italic">$1</span>');
-    }
-    
-    if (l === 'html' || l === 'xml') {
-        return html
-            .replace(/(&lt;\/?[a-zA-Z0-9\-]+)(?=\s|&gt;)/g, '<span class="text-purple-500 dark:text-purple-400 font-semibold">$1</span>')
-            .replace(/(\s[a-zA-Z0-9\-]+=)/g, '<span class="text-sky-400 dark:text-sky-300 font-semibold">$1</span>')
-            .replace(/(=)(&quot;.*?&quot;)/g, '$1<span class="text-emerald-600 dark:text-emerald-400">$2</span>')
-            .replace(/(&lt;\/?[a-zA-Z0-9\-]+)(&gt;)/g, '<span class="text-purple-500 dark:text-purple-400 font-semibold">$1</span>$2')
-            .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="text-slate-500 dark:text-slate-450 italic">$1</span>');
-    }
-    
-    if (l === 'sql') {
-        const sqlKeywords = /\b(SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DROP|ALTER|INDEX|JOIN|INNER|LEFT|RIGHT|ON|AND|OR|NOT|IN|LIKE|IS|NULL|ORDER|BY|LIMIT|GROUP|HAVING|COUNT|SUM|AVG|MIN|MAX|DISTINCT|AS|UNION|ALL|PRIMARY|KEY|FOREIGN|REFERENCES|DEFAULT)\b/gi;
-        return html
-            .replace(sqlKeywords, '<span class="text-purple-500 dark:text-purple-400 font-semibold">$1</span>')
-            .replace(/(&quot;.*?&quot;|&#39;.*?&#39;)/g, '<span class="text-emerald-600 dark:text-emerald-400">$1</span>')
-            .replace(/(--.*)/g, '<span class="text-slate-500 dark:text-slate-450 italic">$1</span>');
-    }
-    
-    if (l === 'yml' || l === 'yaml') {
-        return html
-            .replace(/^([^:\n]+)(?=:)/gm, '<span class="text-sky-400 dark:text-sky-300 font-bold">$1</span>')
-            .replace(/(:\s+)(.*)$/gm, '$1<span class="text-emerald-600 dark:text-emerald-450">$2</span>')
-            .replace(/(#.*)/g, '<span class="text-slate-500 dark:text-slate-450 italic">$1</span>');
-    }
-    
-    return html;
+    return result;
 };
 
 export default function GenericEditorWorkspace({ text, onUpdate, language, isCompact = false }) {
@@ -343,6 +470,104 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         }
     };
 
+    // Helper SQL formatter (capitalizes SQL keywords and standardizes layout formatting)
+    const formatSql = (sqlText) => {
+        let result = '';
+        let i = 0;
+        const len = sqlText.length;
+        const sqlKeywords = new Set(['select', 'from', 'where', 'insert', 'into', 'values', 'update', 'set', 'delete', 'create', 'table', 'drop', 'alter', 'index', 'join', 'inner', 'left', 'right', 'on', 'and', 'or', 'not', 'in', 'like', 'is', 'null', 'order', 'by', 'limit', 'group', 'having', 'count', 'sum', 'avg', 'min', 'max', 'distinct', 'as', 'union', 'all', 'primary', 'key', 'foreign', 'references', 'default', 'returning', 'with', 'recursive', 'offset']);
+        
+        const escapeHtml = (text) => {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+        
+        while (i < len) {
+            const char = sqlText[i];
+            
+            // Comments --
+            if (char === '-' && sqlText[i+1] === '-') {
+                while (i < len && sqlText[i] !== '\n') {
+                    result += sqlText[i++];
+                }
+                continue;
+            }
+            
+            // Comments /* */
+            if (char === '/' && sqlText[i+1] === '*') {
+                result += '/*';
+                i += 2;
+                while (i < len) {
+                    if (sqlText[i] === '*' && sqlText[i+1] === '/') {
+                        result += '*/';
+                        i += 2;
+                        break;
+                    }
+                    result += sqlText[i++];
+                }
+                continue;
+            }
+            
+            // Strings
+            if (char === '"' || char === "'") {
+                const quote = char;
+                result += quote;
+                i++;
+                while (i < len) {
+                    if (sqlText[i] === '\\') {
+                        result += '\\' + (sqlText[i+1] || '');
+                        i += 2;
+                    } else if (sqlText[i] === quote) {
+                        result += quote;
+                        i++;
+                        break;
+                    } else {
+                        result += sqlText[i++];
+                    }
+                }
+                continue;
+            }
+            
+            // Keywords
+            if (/[a-zA-Z_]/.test(char)) {
+                let word = '';
+                while (i < len && /[a-zA-Z0-9_]/.test(sqlText[i])) {
+                    word += sqlText[i++];
+                }
+                if (sqlKeywords.has(word.toLowerCase())) {
+                    result += word.toUpperCase();
+                } else {
+                    result += word;
+                }
+                continue;
+            }
+            
+            result += char;
+            i++;
+        }
+        
+        // Brackets / Layout indentation format
+        const lines = result.split('\n');
+        let indent = 0;
+        return lines.map(line => {
+            const trimmed = line.trim();
+            if (trimmed.startsWith(')') || trimmed.startsWith('}')) {
+                indent = Math.max(0, indent - 1);
+            }
+            const space = '  '.repeat(indent);
+            const processed = space + trimmed;
+            if (trimmed.endsWith('(') || trimmed.endsWith('{')) {
+                indent++;
+            }
+            return processed;
+        }).join('\n');
+    };
+
     // Generic code formatter / beautifier
     const handleFormatCode = () => {
         if (!text || !text.trim()) {
@@ -355,8 +580,42 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                 const parsed = JSON.parse(text);
                 onUpdate(JSON.stringify(parsed, null, 2));
                 setBanner({ type: 'success', message: 'JSON formatted successfully!' });
-            } else if (['js', 'jsx', 'css', 'html', 'xml', 'sql', 'yml', 'yaml'].includes(l)) {
-                // Custom lightweight layout formatter
+            } else if (l === 'properties') {
+                const lines = text.split('\n');
+                const formatted = lines.map(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) return line;
+                    const match = trimmed.match(/^([^=:]+)([\s=:].*)$/);
+                    if (match) {
+                        const key = match[1].trim();
+                        let rest = match[2].trim();
+                        const sep = rest.startsWith('=') ? '=' : rest.startsWith(':') ? ':' : '=';
+                        let val = rest.substring(1).trim();
+                        return `${key} ${sep} ${val}`;
+                    }
+                    return trimmed;
+                }).join('\n');
+                onUpdate(formatted);
+                setBanner({ type: 'success', message: 'Properties file formatted!' });
+            } else if (l === 'yml' || l === 'yaml') {
+                const lines = text.split('\n');
+                const formatted = lines.map(line => {
+                    if (!line.trim() || line.trim().startsWith('#')) return line.trimRight();
+                    const parts = line.split(':');
+                    if (parts.length > 1 && !line.includes('://')) {
+                        const key = parts[0];
+                        const rest = parts.slice(1).join(':').trim();
+                        return key + ': ' + rest;
+                    }
+                    return line.trimRight();
+                }).join('\n');
+                onUpdate(formatted);
+                setBanner({ type: 'success', message: 'YAML file formatted!' });
+            } else if (l === 'sql') {
+                const formatted = formatSql(text);
+                onUpdate(formatted);
+                setBanner({ type: 'success', message: 'PostgreSQL formatted successfully!' });
+            } else if (['js', 'jsx', 'ts', 'tsx', 'java', 'css', 'html', 'xml'].includes(l)) {
                 const lines = text.split('\n');
                 let indent = 0;
                 const formatted = lines.map(line => {

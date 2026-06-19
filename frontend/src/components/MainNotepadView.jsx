@@ -115,45 +115,24 @@ export default function MainNotepadView({
     const [showVcsPanel, setShowVcsPanel] = useState(false);
     const [editorMenuOpen, setEditorMenuOpen] = useState(false);
 
-    // Panel states for folders sidebar
-    const [foldersWidth, setFoldersWidth] = useState(240);
-    const [foldersCollapsed, setFoldersCollapsed] = useState(false);
+    // Unified sidebar states
+    const [sidebarWidth, setSidebarWidth] = useState(260);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [expandedFolders, setExpandedFolders] = useState({ 'folder_1': true });
 
-    // Panel states for notes sidebar
-    const [notesWidth, setNotesWidth] = useState(280);
-    const [notesCollapsed, setNotesCollapsed] = useState(false);
+    // Open Document Tabs
+    const [openNoteUuids, setOpenNoteUuids] = useState([]);
 
-    // Mouse drag resize handler for Folders sidebar
-    const handleFoldersResizeStart = (e) => {
+    // Mouse drag resize handler for unified Explorer sidebar
+    const handleSidebarResizeStart = (e) => {
         e.preventDefault();
         const startX = e.clientX;
-        const startWidth = foldersWidth;
+        const startWidth = sidebarWidth;
 
         const handleMouseMove = (moveEvent) => {
             const deltaX = moveEvent.clientX - startX;
-            const newWidth = Math.max(160, Math.min(400, startWidth + deltaX));
-            setFoldersWidth(newWidth);
-        };
-
-        const handleMouseUp = () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    };
-
-    // Mouse drag resize handler for Notes sidebar
-    const handleNotesResizeStart = (e) => {
-        e.preventDefault();
-        const startX = e.clientX;
-        const startWidth = notesWidth;
-
-        const handleMouseMove = (moveEvent) => {
-            const deltaX = moveEvent.clientX - startX;
-            const newWidth = Math.max(180, Math.min(450, startWidth + deltaX));
-            setNotesWidth(newWidth);
+            const newWidth = Math.max(180, Math.min(500, startWidth + deltaX));
+            setSidebarWidth(newWidth);
         };
 
         const handleMouseUp = () => {
@@ -170,7 +149,7 @@ export default function MainNotepadView({
         const parts = title.split('.');
         if (parts.length > 1) {
             const ext = parts[parts.length - 1].toLowerCase();
-            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml'];
+            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'ts', 'tsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml'];
             if (supported.includes(ext)) {
                 return ext === 'yaml' ? 'yml' : ext;
             }
@@ -332,22 +311,91 @@ export default function MainNotepadView({
         }
     }, [allFolders, activeFolderUuid]);
 
-    // Note select guard
+    // 1. Automatically add selectedNoteUuid to open tabs and expand parent folder
+    useEffect(() => {
+        if (selectedNoteUuid && !openNoteUuids.includes(selectedNoteUuid)) {
+            setOpenNoteUuids(prev => [...prev, selectedNoteUuid]);
+        }
+        
+        if (selectedNoteUuid && allNotes.length > 0) {
+            const noteObj = allNotes.find(n => n.uuid === selectedNoteUuid);
+            if (noteObj && noteObj.parentFolderUuid) {
+                setExpandedFolders(prev => ({ ...prev, [noteObj.parentFolderUuid]: true }));
+                setActiveFolderUuid(noteObj.parentFolderUuid);
+            }
+        }
+    }, [selectedNoteUuid, allNotes]);
+
+    // 2. Keep tabs synced with existing notes (remove deleted ones)
     useEffect(() => {
         if (allNotes.length > 0) {
-            const folderNotes = allNotes.filter(n => n.parentFolderUuid === activeFolderUuid);
-            if (folderNotes.length > 0) {
-                const exists = folderNotes.some(n => n.uuid === selectedNoteUuid);
-                if (!exists) {
-                    setSelectedNoteUuid(folderNotes[0].uuid);
-                }
-            } else {
-                setSelectedNoteUuid(null);
-            }
+            const existingUuids = allNotes.map(n => n.uuid);
+            setOpenNoteUuids(prev => prev.filter(uuid => existingUuids.includes(uuid)));
         } else {
-            setSelectedNoteUuid(null);
+            setOpenNoteUuids([]);
         }
-    }, [allNotes, activeFolderUuid, selectedNoteUuid]);
+    }, [allNotes]);
+
+    // Keep refs for interval callback to prevent resetting the 10-minute timer
+    const selectedNoteUuidRef = useRef(selectedNoteUuid);
+    const openNoteUuidsRef = useRef(openNoteUuids);
+    const allNotesRef = useRef(allNotes);
+    const getVcsCommitsRef = useRef(getVcsCommits);
+    const addVcsCommitRef = useRef(addVcsCommit);
+
+    useEffect(() => { selectedNoteUuidRef.current = selectedNoteUuid; }, [selectedNoteUuid]);
+    useEffect(() => { openNoteUuidsRef.current = openNoteUuids; }, [openNoteUuids]);
+    useEffect(() => { allNotesRef.current = allNotes; }, [allNotes]);
+    useEffect(() => { getVcsCommitsRef.current = getVcsCommits; }, [getVcsCommits]);
+    useEffect(() => { addVcsCommitRef.current = addVcsCommit; }, [addVcsCommit]);
+
+    // 3. 10-Minute Auto-Versioning Hook (Runs on stable interval, doesn't clear on tab switches or edits)
+    useEffect(() => {
+        if (!db) return;
+
+        const checkAndAutoCommit = () => {
+            try {
+                const openUuids = openNoteUuidsRef.current || [];
+                openUuids.forEach(uuid => {
+                    let currentText = "";
+                    let title = "";
+
+                    if (uuid === selectedNoteUuidRef.current) {
+                        currentText = latestContentRef.current;
+                        const activeNoteObj = allNotesRef.current.find(n => n.uuid === uuid);
+                        title = activeNoteObj ? activeNoteObj.title : "";
+                    } else {
+                        // Query the saved content from sqlite since it was flushed on tab switch/blur
+                        const mdRes = db.exec("SELECT note_markdown_content, note_title FROM sticky_notes WHERE note_uuid = ?", [uuid]);
+                        if (mdRes && mdRes.length > 0 && mdRes[0].values) {
+                            currentText = mdRes[0].values[0][0] || "";
+                            title = mdRes[0].values[0][1] || "";
+                        } else {
+                            return; // skip if note not found in db
+                        }
+                    }
+
+                    const commits = getVcsCommitsRef.current(uuid);
+                    const latestCommit = commits[0];
+
+                    if (!latestCommit || latestCommit.contentSnapshot !== currentText) {
+                        addVcsCommitRef.current(
+                            uuid,
+                            title,
+                            currentText,
+                            "Auto-backup (10 min interval)"
+                        );
+                    }
+                });
+            } catch (err) {
+                console.error("Auto-backup failed:", err);
+            }
+        };
+
+        // Run checking interval every 10 minutes (600,000 ms)
+        const intervalId = setInterval(checkAndAutoCommit, 600000);
+        return () => clearInterval(intervalId);
+    }, [db]);
 
     // Query and update tasks, events, expenses & markdown text cache for the selected note
     useEffect(() => {
@@ -583,7 +631,7 @@ export default function MainNotepadView({
         return new Promise((resolve) => {
             const name = file.name;
             const ext = name.split('.').pop().toLowerCase();
-            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml', 'txt'];
+            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'ts', 'tsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml', 'txt'];
 
             if (!supported.includes(ext)) {
                 alert(`Unsupported file format: .${ext}. Supported formats: ${supported.join(', ')}`);
@@ -1127,6 +1175,23 @@ export default function MainNotepadView({
         }
     };
 
+    // Tabs Controller helper
+    const handleCloseTab = (uuid, e) => {
+        if (e) e.stopPropagation();
+        const nextTabs = openNoteUuids.filter(id => id !== uuid);
+        setOpenNoteUuids(nextTabs);
+        
+        if (selectedNoteUuid === uuid) {
+            if (nextTabs.length > 0) {
+                const closedIdx = openNoteUuids.indexOf(uuid);
+                const nextActiveIdx = Math.min(closedIdx, nextTabs.length - 1);
+                setSelectedNoteUuid(nextTabs[nextActiveIdx]);
+            } else {
+                setSelectedNoteUuid(null);
+            }
+        }
+    };
+
     // Frameless Custom Titlebar Controllers
     const handleMinimize = () => {
         if (ipcRenderer) ipcRenderer.send('window-minimize');
@@ -1204,191 +1269,383 @@ export default function MainNotepadView({
             {/* Main App Workspace */}
             <div className="flex-1 flex min-h-0 bg-slate-55 dark:bg-slate-950 text-xs relative">
                 
-                {/* COLUMN 1: Notebook Folders */}
-                {foldersCollapsed ? (
+                {/* UNIFIED SIDEBAR: File & Notebook Tree View */}
+                {sidebarCollapsed ? (
                     <div className="w-12 border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0">
                         <div className="flex flex-col items-center gap-4 w-full">
                             <button
-                                onClick={() => setFoldersCollapsed(false)}
+                                onClick={() => setSidebarCollapsed(false)}
                                 className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-450 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                                title="Expand notebook folders panel"
+                                title="Expand Explorer Sidebar"
                             >
                                 <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
                             </button>
                             <div className="w-full border-t border-black/5 dark:border-white/5" />
                             <div className="flex flex-col items-center gap-1.5 w-full overflow-y-auto scrollbar-none px-1">
                                 {allFolders.map(f => {
-                                    const isFolderActive = f.uuid === activeFolderUuid;
+                                    const isFolderExpanded = expandedFolders[f.uuid];
                                     return (
                                         <button
                                             key={f.uuid}
-                                            onClick={() => setActiveFolderUuid(f.uuid)}
+                                            onClick={() => {
+                                                setSidebarCollapsed(false);
+                                                setExpandedFolders(prev => ({ ...prev, [f.uuid]: !prev[f.uuid] }));
+                                                setActiveFolderUuid(f.uuid);
+                                            }}
                                             title={f.name}
-                                            onDragOver={(e) => handleDragOverFolder(e, f.uuid)}
-                                            onDragLeave={handleDragLeaveFolder}
-                                            onDrop={(e) => handleDropFolder(e, f.uuid)}
                                             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                                                draggingOverFolderUuid === f.uuid ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10' : ''
-                                            } ${
-                                                isFolderActive
+                                                activeFolderUuid === f.uuid
                                                     ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm'
                                                     : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
                                             }`}
                                         >
-                                            <FontAwesomeIcon icon={isFolderActive ? faFolderOpen : faFolder} className="text-xs" />
+                                            <FontAwesomeIcon icon={isFolderExpanded ? faFolderOpen : faFolder} className="text-xs" />
                                         </button>
                                     );
                                 })}
                             </div>
                         </div>
-
-                        <div className="flex flex-col items-center gap-2 w-full px-1">
-                            <button
-                                onClick={() => {
-                                    setFoldersCollapsed(false);
-                                    setIsCreatingFolder(true);
-                                }}
-                                title="Add Notebook"
-                                className="w-8 h-8 rounded-lg border border-dashed border-black/15 hover:border-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                            >
-                                <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
-                            </button>
-                        </div>
                     </div>
                 ) : (
-                    <div style={{ width: `${foldersWidth}px` }} className="border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0">
+                    <div 
+                        style={{ width: `${sidebarWidth}px` }} 
+                        className="border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0"
+                    >
                         <div className="flex flex-col min-h-0">
-                            <div className="flex items-center justify-between mb-3">
+                            {/* Explorer Header */}
+                            <div className="flex items-center justify-between mb-3 flex-shrink-0">
                                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 flex items-center gap-1.5">
-                                    <FontAwesomeIcon icon={faFolder} className="text-slate-400 dark:text-slate-550 text-[10px]" />
-                                    Notebooks
+                                    <FontAwesomeIcon icon={faFolderOpen} className="text-slate-400 dark:text-slate-550 text-[10px]" />
+                                    Explorer
                                 </span>
-                                <button
-                                    onClick={() => setFoldersCollapsed(true)}
-                                    className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-455 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                                    title="Collapse notebook folders panel"
-                                >
-                                    <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setIsCreatingFolder(true)}
+                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                        title="New Notebook"
+                                    >
+                                        <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+                                    </button>
+                                    <button
+                                        onClick={() => setSidebarCollapsed(true)}
+                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-455 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                        title="Collapse Sidebar"
+                                    >
+                                        <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto space-y-1 scrollbar-none pr-0.5">
-                                {allFolders.map(f => {
-                                    const isFolderActive = f.uuid === activeFolderUuid;
+
+                            {/* Search bar inside Sidebar */}
+                            <div className="relative mb-3 flex-shrink-0">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400 dark:text-slate-550">
+                                    <FontAwesomeIcon icon={faSearch} className="text-[10px]" />
+                                </span>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    placeholder="Search workspace files..."
+                                    className="w-full text-[10px] pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100 transition-colors"
+                                />
+                            </div>
+
+                            {/* Workspace Sorting selector */}
+                            <div className="flex items-center justify-between mb-2.5 px-2 py-1 bg-white/40 dark:bg-slate-900/20 border border-black/5 dark:border-white/5 rounded-lg text-[9px] text-slate-500 font-medium select-none flex-shrink-0">
+                                <div className="flex items-center gap-1.5">
+                                    <FontAwesomeIcon icon={faSort} className="text-slate-400 text-[10px]" />
+                                    <span className="font-bold uppercase tracking-wider text-[8px] text-slate-400">Sort Files</span>
+                                </div>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="bg-transparent border-none text-slate-700 dark:text-slate-300 font-semibold focus:outline-none cursor-pointer text-[9px] py-0.5"
+                                >
+                                    <option value="custom">Custom Order</option>
+                                    <option value="alpha-asc">A - Z</option>
+                                    <option value="alpha-desc">Z - A</option>
+                                    <option value="newest">Newest</option>
+                                    <option value="oldest">Oldest</option>
+                                    <option value="priority">Priority</option>
+                                    <option value="theme">Theme Color</option>
+                                </select>
+                            </div>
+
+                            {/* Tree View list */}
+                            <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-none pr-0.5">
+                                {allFolders.map(folder => {
+                                    const isFolderExpanded = expandedFolders[folder.uuid] || searchQuery.trim().length > 0;
+                                    const isFolderActive = folder.uuid === activeFolderUuid;
+                                    
+                                    // Get notes inside this folder
+                                    const notesInThisFolder = allNotes.filter(n => n.parentFolderUuid === folder.uuid);
+                                    
+                                    // Apply search filtering
+                                    const filteredNotes = notesInThisFolder.filter(n => {
+                                        const query = searchQuery.trim();
+                                        if (!query) return true;
+                                        return searchMatchedUuids ? searchMatchedUuids.includes(n.uuid) : false;
+                                    });
+
+                                    // Sort notes based on sortBy setting
+                                    const sortedFolderNotes = [...filteredNotes].sort((a, b) => {
+                                        if (sortBy === 'alpha-asc') return a.title.localeCompare(b.title);
+                                        if (sortBy === 'alpha-desc') return b.title.localeCompare(a.title);
+                                        if (sortBy === 'newest') return b.createdAt.localeCompare(a.createdAt);
+                                        if (sortBy === 'oldest') return a.createdAt.localeCompare(b.createdAt);
+                                        if (sortBy === 'priority' || sortBy === 'theme') {
+                                            const weights = { red: 5, pink: 5, yellow: 4, blue: 2, green: 1 };
+                                            return (weights[b.theme] || 0) - (weights[a.theme] || 0);
+                                        }
+                                        return a.sortOrder - b.sortOrder;
+                                    });
+
+                                    // If search query is active and neither the folder matches nor has children, skip rendering
+                                    if (searchQuery.trim().length > 0 && sortedFolderNotes.length === 0 && !folder.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+                                        return null;
+                                    }
+
                                     return (
-                                        <div
-                                            key={f.uuid}
-                                            onClick={() => setActiveFolderUuid(f.uuid)}
-                                            onDragOver={(e) => handleDragOverFolder(e, f.uuid)}
-                                            onDragLeave={handleDragLeaveFolder}
-                                            onDrop={(e) => handleDropFolder(e, f.uuid)}
-                                            className={`group flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
-                                                draggingOverFolderUuid === f.uuid ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10' : ''
-                                            } ${
-                                                isFolderActive
-                                                    ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm font-semibold'
-                                                    : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 font-medium'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <FontAwesomeIcon icon={isFolderActive ? faFolderOpen : faFolder} className="text-xs opacity-75" />
-                                                {editingFolderUuid === f.uuid ? (
-                                                    <input
-                                                        type="text"
-                                                        value={folderRenameVal}
-                                                        onChange={e => setFolderRenameVal(e.target.value)}
-                                                        onBlur={() => commitFolderRename(f.uuid)}
-                                                        onKeyDown={e => e.key === 'Enter' && commitFolderRename(f.uuid)}
-                                                        maxLength={20}
-                                                        autoFocus
-                                                        onClick={e => e.stopPropagation()}
-                                                        className="w-full bg-slate-700 dark:bg-slate-800 text-white rounded px-1 py-0.2 text-[10px] focus:outline-none"
-                                                    />
-                                                ) : (
-                                                    <span className="truncate max-w-[90px]">{f.name}</span>
-                                                )}
-                                            </div>
-                                            {editingFolderUuid !== f.uuid && (
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); startFolderRename(f); }}
-                                                        className={`p-0.5 rounded ${isFolderActive ? 'hover:bg-white/10 text-white dark:text-slate-800 dark:hover:bg-black/10' : 'hover:bg-black/10 text-slate-500 dark:text-slate-400 dark:hover:bg-white/5'}`}
-                                                        title="Rename notebook"
-                                                    >
-                                                        <FontAwesomeIcon icon={faPen} className="text-[8px]" />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveFolderExportMenuUuid(activeFolderExportMenuUuid === f.uuid ? null : f.uuid);
-                                                        }}
-                                                        className={`p-0.5 rounded relative ${isFolderActive ? 'hover:bg-white/10 text-white dark:text-slate-800 dark:hover:bg-black/10' : 'hover:bg-black/10 text-slate-500 dark:text-slate-400 dark:hover:bg-white/5'}`}
-                                                        title="Export notebook..."
-                                                    >
-                                                        <FontAwesomeIcon icon={faFileExport} className="text-[8px]" />
-                                                        {activeFolderExportMenuUuid === f.uuid && (
-                                                            <>
-                                                                <div className="fixed inset-0 z-45 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveFolderExportMenuUuid(null); }} />
-                                                                <div className="absolute left-full top-0 ml-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-xl py-1 w-44 z-50 text-slate-700 dark:text-slate-200 text-left font-normal select-none">
-                                                                    <div className="px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-widest text-slate-455 border-b border-black/5 dark:border-white/5 mb-1">Export Notebook</div>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportFolderData(f.uuid, f.name, 'raw');
-                                                                            setActiveFolderExportMenuUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faFileLines} className="text-slate-400 w-3 text-center" />
-                                                                        Raw Compiled Text
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportFolderData(f.uuid, f.name, 'json');
-                                                                            setActiveFolderExportMenuUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faFileCode} className="text-slate-400 w-3 text-center" />
-                                                                        Structured JSON
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportFolderData(f.uuid, f.name, 'csv');
-                                                                            setActiveFolderExportMenuUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faFileCsv} className="text-slate-400 w-3 text-center" />
-                                                                        Tabular CSV Sheet
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportFolderData(f.uuid, f.name, 'db');
-                                                                            setActiveFolderExportMenuUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faDatabase} className="text-slate-400 w-3 text-center" />
-                                                                        SQLite Database (.db)
-                                                                    </button>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                    {f.uuid !== 'folder_1' && (
+                                        <div key={folder.uuid} className="flex flex-col">
+                                            {/* Folder Row */}
+                                            <div
+                                                onClick={() => {
+                                                    setExpandedFolders(prev => ({ ...prev, [folder.uuid]: !prev[folder.uuid] }));
+                                                    setActiveFolderUuid(folder.uuid);
+                                                }}
+                                                onDragOver={(e) => handleDragOverFolder(e, folder.uuid)}
+                                                onDragLeave={handleDragLeaveFolder}
+                                                onDrop={(e) => handleDropFolder(e, folder.uuid)}
+                                                className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
+                                                    draggingOverFolderUuid === folder.uuid ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10' : ''
+                                                } ${
+                                                    isFolderActive
+                                                        ? 'bg-slate-200/60 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-semibold'
+                                                        : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 font-medium'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <FontAwesomeIcon icon={isFolderExpanded ? faFolderOpen : faFolder} className="text-xs opacity-75 text-indigo-555" />
+                                                    {editingFolderUuid === folder.uuid ? (
+                                                        <input
+                                                            type="text"
+                                                            value={folderRenameVal}
+                                                            onChange={e => setFolderRenameVal(e.target.value)}
+                                                            onBlur={() => commitFolderRename(folder.uuid)}
+                                                            onKeyDown={e => e.key === 'Enter' && commitFolderRename(folder.uuid)}
+                                                            maxLength={20}
+                                                            autoFocus
+                                                            onClick={e => e.stopPropagation()}
+                                                            className="w-full bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded px-1 text-[10px] focus:outline-none border border-black/10"
+                                                        />
+                                                    ) : (
+                                                        <span className="truncate max-w-[120px] text-[11px]">{folder.name}</span>
+                                                    )}
+                                                </div>
+
+                                                {editingFolderUuid !== folder.uuid && (
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                        {/* Add note directly in this folder */}
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                confirm(`Wipe notebook "${f.name}" and all notes inside it permanently?`) && onDeleteFolder(f.uuid);
+                                                                setActiveFolderUuid(folder.uuid);
+                                                                setIsCreatingNote(true);
                                                             }}
-                                                            className={`p-0.5 rounded ${isFolderActive ? 'hover:bg-white/10 text-red-300 dark:text-rose-800 dark:hover:bg-black/10' : 'hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 dark:text-rose-400'}`}
-                                                            title="Wipe notebook"
+                                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400"
+                                                            title="Add File here"
                                                         >
-                                                            <FontAwesomeIcon icon={faTrashCan} className="text-[8px]" />
+                                                            <FontAwesomeIcon icon={faPlus} className="text-[8px]" />
                                                         </button>
+                                                        {/* Rename Folder */}
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); startFolderRename(folder); }}
+                                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400"
+                                                            title="Rename notebook"
+                                                        >
+                                                            <FontAwesomeIcon icon={faPen} className="text-[8px]" />
+                                                        </button>
+                                                        {/* Delete Folder */}
+                                                        {folder.uuid !== 'folder_1' && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    confirm(`Wipe notebook "${folder.name}" and all notes inside it permanently?`) && onDeleteFolder(folder.uuid);
+                                                                }}
+                                                                className="p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500"
+                                                                title="Delete notebook"
+                                                            >
+                                                                <FontAwesomeIcon icon={faTrashCan} className="text-[8px]" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Nested Notes (if expanded) */}
+                                            {isFolderExpanded && (
+                                                <div className="pl-4 flex flex-col gap-1 mt-1 border-l border-black/5 dark:border-white/5 ml-3">
+                                                    {sortedFolderNotes.map((n, idx) => {
+                                                        const isNoteSelected = n.uuid === selectedNoteUuid;
+                                                        const isVisible = !!windowsState[n.uuid]?.visible;
+                                                        const isPinned = !!windowsState[n.uuid]?.pinned;
+                                                        
+                                                        // Priority flag dot background classes
+                                                        const themeIndicatorClasses = {
+                                                            yellow: 'bg-amber-400 border-amber-500',
+                                                            pink: 'bg-rose-400 border-rose-500',
+                                                            red: 'bg-rose-500 border-rose-600',
+                                                            blue: 'bg-sky-400 border-sky-500',
+                                                            green: 'bg-emerald-400 border-emerald-500'
+                                                        };
+
+                                                        return (
+                                                            <div
+                                                                key={n.uuid}
+                                                                draggable
+                                                                onDragStart={(e) => {
+                                                                    e.dataTransfer.setData('text/plain', n.uuid);
+                                                                    e.dataTransfer.effectAllowed = 'move';
+                                                                }}
+                                                                onClick={() => setSelectedNoteUuid(n.uuid)}
+                                                                className={`group/note flex items-center justify-between py-1 px-2.5 rounded-md cursor-pointer transition-all border ${
+                                                                    isNoteSelected
+                                                                        ? 'bg-white dark:bg-slate-800/80 border-black/10 dark:border-white/10 shadow-xs'
+                                                                        : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    {/* Color theme priority dot menu */}
+                                                                    <div className="relative flex-shrink-0">
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); setActiveThemeMenu(activeThemeMenu === n.uuid ? null : n.uuid); }}
+                                                                            className={`w-2 h-2 rounded-full border shadow-xs hover:scale-125 transition-transform ${
+                                                                                themeIndicatorClasses[n.theme] || 'bg-slate-300'
+                                                                            }`}
+                                                                            title={`Theme: ${n.theme}`}
+                                                                        />
+                                                                        {activeThemeMenu === n.uuid && (
+                                                                            <div className="absolute top-4 left-0 z-50">
+                                                                                <div className="fixed inset-0" onClick={(e) => { e.stopPropagation(); setActiveThemeMenu(null); }} />
+                                                                                <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-black/10 dark:border-white/10 rounded-lg py-1 px-1 flex flex-col gap-0.5 w-[100px] text-slate-700 dark:text-slate-200">
+                                                                                    {Object.entries(priorityFlags).filter(([k]) => k !== 'pink').map(([k, meta]) => (
+                                                                                        <button
+                                                                                            key={k}
+                                                                                            type="button"
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                onChangeNoteTheme(n.uuid, k === 'red' ? 'pink' : k);
+                                                                                                setActiveThemeMenu(null);
+                                                                                            }}
+                                                                                            className="flex items-center gap-1.5 w-full text-[8px] font-semibold hover:bg-black/5 dark:hover:bg-white/5 px-1.5 py-0.5 rounded transition-colors text-left"
+                                                                                        >
+                                                                                            <FontAwesomeIcon icon={faFlag} className={meta.flagColor} />
+                                                                                            <span>{meta.label.split(' ')[0]}</span>
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {editingNoteUuid === n.uuid ? (
+                                                                        <input
+                                                                            type="text"
+                                                                            value={noteRenameVal}
+                                                                            onChange={e => setNoteRenameVal(e.target.value)}
+                                                                            onBlur={() => commitNoteRename(n.uuid)}
+                                                                            onKeyDown={e => e.key === 'Enter' && commitNoteRename(n.uuid)}
+                                                                            maxLength={25}
+                                                                            autoFocus
+                                                                            onClick={e => e.stopPropagation()}
+                                                                            className="w-[120px] bg-white border border-slate-350 rounded px-1 text-[10px] focus:outline-none"
+                                                                        />
+                                                                    ) : (
+                                                                        <span 
+                                                                            className={`text-[10.5px] truncate max-w-[130px] ${
+                                                                                isNoteSelected ? 'text-slate-800 dark:text-white font-semibold' : 'text-slate-600 dark:text-slate-350'
+                                                                            }`}
+                                                                            title={n.title}
+                                                                        >
+                                                                            {n.title}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Hover Action Buttons */}
+                                                                {editingNoteUuid !== n.uuid && (
+                                                                    <div className="opacity-0 group-hover/note:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                                        {/* Swap custom orders */}
+                                                                        {sortBy === 'custom' && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={(e) => handleMoveNoteUp(idx, e)}
+                                                                                    disabled={idx === 0}
+                                                                                    className={`p-0.5 rounded ${idx === 0 ? 'opacity-30 pointer-events-none' : 'text-slate-400 hover:text-slate-655'}`}
+                                                                                    title="Move Up"
+                                                                                >
+                                                                                    <FontAwesomeIcon icon={faArrowUp} className="text-[7px]" />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => handleMoveNoteDown(idx, e)}
+                                                                                    disabled={idx === sortedFolderNotes.length - 1}
+                                                                                    className={`p-0.5 rounded ${idx === sortedFolderNotes.length - 1 ? 'opacity-30 pointer-events-none' : 'text-slate-400 hover:text-slate-655'}`}
+                                                                                    title="Move Down"
+                                                                                >
+                                                                                    <FontAwesomeIcon icon={faArrowDown} className="text-[7px]" />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                        {/* Popout window */}
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleShow(n.uuid); }}
+                                                                            className="p-0.5 rounded hover:bg-black/10 text-slate-400 hover:text-slate-600"
+                                                                            title="Float Window"
+                                                                        >
+                                                                            <FontAwesomeIcon icon={faUpRightFromSquare} className="text-[7px]" />
+                                                                        </button>
+                                                                        {/* Pin */}
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleTogglePin(n.uuid); }}
+                                                                            className={`p-0.5 rounded hover:bg-black/10 ${isPinned ? 'text-indigo-600' : 'text-slate-400'}`}
+                                                                            title="Pin window"
+                                                                        >
+                                                                            <FontAwesomeIcon icon={faThumbtack} className="text-[7px]" />
+                                                                        </button>
+                                                                        {/* Show/Hide */}
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); isVisible ? handleHide(n.uuid) : handleShow(n.uuid); }}
+                                                                            className={`p-0.5 rounded hover:bg-black/10 ${isVisible ? 'text-emerald-500' : 'text-slate-400'}`}
+                                                                            title={isVisible ? "Hide Float" : "Show Float"}
+                                                                        >
+                                                                            <FontAwesomeIcon icon={isVisible ? faEye : faEyeSlash} className="text-[7px]" />
+                                                                        </button>
+                                                                        {/* Rename */}
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); startNoteRename(n); }}
+                                                                            className="p-0.5 rounded hover:bg-black/10 text-slate-400 hover:text-slate-600"
+                                                                            title="Rename file"
+                                                                        >
+                                                                            <FontAwesomeIcon icon={faPen} className="text-[7px]" />
+                                                                        </button>
+                                                                        {/* Delete */}
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                confirm(`Delete note "${n.title}"?`) && onDeleteNote(n.uuid);
+                                                                            }}
+                                                                            className="p-0.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-500"
+                                                                            title="Delete file"
+                                                                        >
+                                                                            <FontAwesomeIcon icon={faTrashCan} className="text-[7px]" />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {sortedFolderNotes.length === 0 && (
+                                                        <span className="text-[9px] text-slate-400 dark:text-slate-500 italic pl-2 py-0.5">Empty notebook</span>
                                                     )}
                                                 </div>
                                             )}
@@ -1398,7 +1655,7 @@ export default function MainNotepadView({
                             </div>
                         </div>
 
-                        {/* Left Column Bottom Control Row */}
+                        {/* Sidebar Footer Controls */}
                         <div className="pt-2 border-t border-black/5 dark:border-white/5 flex-shrink-0 flex flex-col gap-2">
                             {isCreatingFolder ? (
                                 <input
@@ -1424,405 +1681,27 @@ export default function MainNotepadView({
                                         if (e.key === 'Escape') setIsCreatingFolder(false);
                                     }}
                                     onBlur={() => setIsCreatingFolder(false)}
-                                    className="w-full text-[10px] px-2 py-1 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-slate-850 dark:focus:border-white/20 text-slate-800 dark:text-slate-100"
+                                    className="w-full text-[10px] px-2 py-1 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none text-slate-800 dark:text-slate-100"
                                 />
-                            ) : (
-                                <button
-                                    onClick={() => setIsCreatingFolder(true)}
-                                    className="w-full py-1.5 border border-dashed border-black/15 dark:border-white/10 hover:border-slate-850 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg text-[9px] font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-all"
-                                >
-                                    <FontAwesomeIcon icon={faPlus} /> Notebook
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Resize Handle 1 */}
-                {!foldersCollapsed && (
-                    <div 
-                        onMouseDown={handleFoldersResizeStart}
-                        className="w-1 cursor-col-resize hover:bg-indigo-500/50 bg-black/[0.03] hover:w-[6px] hover:-mx-[1px] transition-all duration-150 z-30 select-none flex-shrink-0"
-                        title="Drag to resize notebook folders panel"
-                    />
-                )}
-
-                {/* COLUMN 2: Notes list inside Folder */}
-                {notesCollapsed ? (
-                    <div 
-                        onDragOver={handleDragOverNotes}
-                        onDragLeave={handleDragLeaveNotes}
-                        onDrop={handleDropNotes}
-                        className={`w-12 border-r border-black/5 dark:border-white/5 ${isDarkMode ? 'bg-slate-900/40' : 'bg-slate-50/60'} flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0 transition-all ${
-                            isDraggingOverNotes ? 'ring-2 ring-indigo-500 ring-dashed bg-indigo-50/10 dark:bg-indigo-950/10' : ''
-                        }`}
-                    >
-                        <div className="flex flex-col items-center gap-4 w-full">
-                            <button
-                                onClick={() => setNotesCollapsed(false)}
-                                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-455 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                                title="Expand notes list panel"
-                            >
-                                <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
-                            </button>
-                            <div className="w-full border-t border-black/5 dark:border-white/5" />
-                            <div className="flex flex-col items-center gap-2 w-full overflow-y-auto scrollbar-none px-1">
-                                {sortedNotes.map((n) => {
-                                    const isNoteSelected = n.uuid === selectedNoteUuid;
-                                    return (
-                                        <button
-                                            key={n.uuid}
-                                            onClick={() => setSelectedNoteUuid(n.uuid)}
-                                            title={n.title}
-                                            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
-                                                isNoteSelected
-                                                    ? cardSelectedClasses[n.theme] || 'ring-1 ring-slate-800 bg-slate-50 border-slate-850 shadow-xs'
-                                                    : cardBgClasses[n.theme] || 'bg-white dark:bg-slate-800 border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10'
-                                            }`}
-                                        >
-                                            <div className={`w-4 h-4 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center ${bgClasses[n.theme] || 'bg-slate-200'} shadow-xs`}>
-                                                <span className="text-[7px] text-slate-700 dark:text-slate-300 font-extrabold font-mono">
-                                                    {n.title.slice(0, 1).toUpperCase()}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="w-full px-1">
-                            <button
-                                onClick={() => {
-                                    setNotesCollapsed(false);
-                                    setIsCreatingNote(true);
-                                }}
-                                title="Add Note Page"
-                                className="w-8 h-8 rounded-lg border border-dashed border-black/15 dark:border-white/10 hover:border-slate-800 dark:hover:border-white/20 flex items-center justify-center text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                            >
-                                <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <div 
-                        style={{ width: `${notesWidth}px` }} 
-                        className={`border-r border-black/5 dark:border-white/5 ${isDarkMode ? 'bg-slate-900/40' : 'bg-slate-50/60'} flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0 transition-all ${
-                            isDraggingOverNotes ? 'ring-2 ring-indigo-500 ring-dashed bg-indigo-50/10 dark:bg-indigo-955/10' : ''
-                        }`}
-                        onDragOver={handleDragOverNotes}
-                        onDragLeave={handleDragLeaveNotes}
-                        onDrop={handleDropNotes}
-                    >
-                        <div className="flex flex-col min-h-0">
-                            <div className="flex items-center justify-between mb-2.5">
-                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 flex items-center gap-1.5 truncate max-w-[80%]">
-                                    <FontAwesomeIcon icon={faFileLines} className="text-slate-400 dark:text-slate-550 text-[10px]" />
-                                    {activeFolder ? activeFolder.name : 'Notes'}
-                                </span>
-                                <button
-                                    onClick={() => setNotesCollapsed(true)}
-                                    className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-455 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                                    title="Collapse notes list panel"
-                                >
-                                    <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
-                                </button>
-                            </div>
-
-                            {/* Note Search Input */}
-                            <div className="relative mb-3 flex-shrink-0">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400 dark:text-slate-550">
-                                    <FontAwesomeIcon icon={faSearch} className="text-[10px]" />
-                                </span>
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Search notes..."
-                                    className="w-full text-[10px] pl-7 pr-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-slate-850 dark:focus:border-white/20 text-slate-800 dark:text-slate-100 transition-colors"
-                                />
-                            </div>
-
-                            {/* Sort Selector */}
-                            <div className="flex items-center justify-between mb-2.5 px-1.5 py-1 bg-slate-50 border border-black/5 rounded-lg text-[9px] text-slate-500 font-medium select-none flex-shrink-0">
-                                <div className="flex items-center gap-1.5">
-                                    <FontAwesomeIcon icon={faSort} className="text-slate-400 text-[10px]" />
-                                    <span className="font-bold uppercase tracking-wider text-[8px] text-slate-400">Sort By</span>
-                                </div>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="bg-transparent border-none text-slate-700 font-semibold focus:outline-none cursor-pointer text-[9px] py-0.5 pr-1"
-                                >
-                                    <option value="custom">Custom Order</option>
-                                    <option value="alpha-asc">A - Z</option>
-                                    <option value="alpha-desc">Z - A</option>
-                                    <option value="newest">Newest</option>
-                                    <option value="oldest">Oldest</option>
-                                    <option value="priority">Priority</option>
-                                    <option value="theme">Theme Color</option>
-                                </select>
-                            </div>
-
-                            {/* Notes Scrollboard */}
-                            <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-none">
-                                {sortedNotes.map((n, idx) => {
-                                    const isNoteSelected = n.uuid === selectedNoteUuid;
-                                    const isVisible = !!windowsState[n.uuid]?.visible;
-                                    const isPinned = !!windowsState[n.uuid]?.pinned;
-
-                                    return (
-                                        <div
-                                            key={n.uuid}
-                                            onClick={() => setSelectedNoteUuid(n.uuid)}
-                                            className={`p-2.5 border rounded-lg transition-all flex flex-col gap-1.5 cursor-pointer ${
-                                                isNoteSelected
-                                                    ? cardSelectedClasses[n.theme] || 'ring-1 ring-slate-800 bg-slate-50 border-slate-855'
-                                                    : cardBgClasses[n.theme] || 'bg-white border-black/5 hover:border-black/10'
-                                            }`}
-                                        >
-                                            <div className="flex items-center justify-between gap-1.5 min-w-0">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    {/* Priority Picker Flag */}
-                                                    <div className="relative">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setActiveThemeMenu(activeThemeMenu === n.uuid ? null : n.uuid); }}
-                                                            className="w-4 h-4 rounded-full border border-black/10 cursor-pointer shadow-xs flex items-center justify-center transition-transform hover:scale-110 bg-white dark:bg-slate-800"
-                                                            title={priorityFlags[n.theme]?.label || "Priority"}
-                                                        >
-                                                            <FontAwesomeIcon icon={faFlag} className={`text-[8px] ${priorityFlags[n.theme]?.flagColor || 'text-slate-400'}`} />
-                                                        </button>
-                                                        {activeThemeMenu === n.uuid && (
-                                                            <div className="absolute bottom-full left-0 pb-1.5 z-[100]">
-                                                                <div className="bg-white dark:bg-slate-900 shadow-xl border border-black/10 dark:border-white/10 rounded-lg py-1 px-1 flex flex-col gap-0.5 w-[110px] text-slate-700 dark:text-slate-200 select-none">
-                                                                     {Object.entries(priorityFlags).filter(([k]) => k !== 'pink').map(([k, meta]) => (
-                                                                        <button
-                                                                            key={k}
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                onChangeNoteTheme(n.uuid, k === 'red' ? 'pink' : k);
-                                                                                setActiveThemeMenu(null);
-                                                                            }}
-                                                                            className="flex items-center gap-1.5 w-full text-[9px] font-semibold hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded transition-colors text-left"
-                                                                        >
-                                                                            <FontAwesomeIcon icon={faFlag} className={meta.flagColor} />
-                                                                            <span>{meta.label.split(' ')[0]}</span>
-                                                                        </button>
-                                                                     ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {editingNoteUuid === n.uuid ? (
-                                                        <input
-                                                            type="text"
-                                                            value={noteRenameVal}
-                                                            onChange={e => setNoteRenameVal(e.target.value)}
-                                                            onBlur={() => commitNoteRename(n.uuid)}
-                                                            onKeyDown={e => e.key === 'Enter' && commitNoteRename(n.uuid)}
-                                                            maxLength={20}
-                                                            autoFocus
-                                                            onClick={e => e.stopPropagation()}
-                                                            className="w-[100px] bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[10px] focus:outline-none"
-                                                        />
-                                                    ) : (
-                                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-[100px]" title={n.title}>
-                                                            {n.title}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Status Badge */}
-                                                <span className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider border flex items-center gap-1 ${
-                                                    isVisible 
-                                                        ? 'bg-emerald-50 text-emerald-655 border-emerald-500/10' 
-                                                        : 'bg-slate-100 text-slate-500 border-black/5'
-                                                }`}>
-                                                    <span className={`w-1 h-1 rounded-full ${isVisible ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                                                    {isVisible ? 'Floating' : 'Docked'}
-                                                </span>
-                                            </div>
-
-                                            {/* Action buttons row */}
-                                            <div className="flex items-center justify-between border-t border-black/5 pt-1.5 text-slate-400">
-                                                <span className="text-[8px] font-semibold text-slate-400 select-none flex items-center gap-1">
-                                                    <FontAwesomeIcon icon={faClock} className="text-[8px] opacity-75" />
-                                                    {formatDate(n.createdAt)}
-                                                </span>
-                                                <div className="flex items-center gap-1.5">
-                                                    {/* Custom Order Up/Down buttons */}
-                                                    {sortBy === 'custom' && (
-                                                        <>
-                                                            <button
-                                                                onClick={(e) => handleMoveNoteUp(idx, e)}
-                                                                disabled={idx === 0}
-                                                                className={`p-0.5 rounded cursor-pointer transition-colors ${idx === 0 ? 'text-slate-200 dark:text-slate-800 pointer-events-none' : 'text-slate-455 hover:text-slate-700 dark:hover:text-slate-255'}`}
-                                                                title="Move Up"
-                                                            >
-                                                                <FontAwesomeIcon icon={faArrowUp} className="text-[8px]" />
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => handleMoveNoteDown(idx, e)}
-                                                                disabled={idx === sortedNotes.length - 1}
-                                                                className={`p-0.5 rounded cursor-pointer transition-colors ${idx === sortedNotes.length - 1 ? 'text-slate-200 dark:text-slate-800 pointer-events-none' : 'text-slate-455 hover:text-slate-700 dark:hover:text-slate-255'}`}
-                                                                title="Move Down"
-                                                            >
-                                                                <FontAwesomeIcon icon={faArrowDown} className="text-[8px]" />
-                                                            </button>
-                                                        </>
-                                                    )}
-
-                                                    {/* Standard flag button removed */}
-
-                                                    {/* Pop out Sticky Note */}
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleShow(n.uuid); }}
-                                                        className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-500 hover:text-slate-800"
-                                                        title="Pop out as Floating Sticky Note"
-                                                    >
-                                                        <FontAwesomeIcon icon={faUpRightFromSquare} className="text-[8px]" />
-                                                    </button>
-
-                                                    {/* Pin button */}
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleTogglePin(n.uuid); }}
-                                                        className={`p-0.5 hover:bg-black/5 rounded cursor-pointer ${isPinned ? 'text-indigo-600' : 'text-slate-400'}`}
-                                                        title={isPinned ? "Unpin floating note" : "Pin floating note"}
-                                                    >
-                                                        <FontAwesomeIcon icon={faThumbtack} className="text-[8px]" />
-                                                    </button>
-
-                                                    {/* Visibility */}
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); isVisible ? handleHide(n.uuid) : handleShow(n.uuid); }}
-                                                        className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400"
-                                                        title={isVisible ? "Hide floating note" : "Show floating note"}
-                                                    >
-                                                        <FontAwesomeIcon icon={faEyeSlash} className="text-[8px]" />
-                                                    </button>
-
-                                                    {/* Rename */}
-                                                    {editingNoteUuid !== n.uuid && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); startNoteRename(n); }}
-                                                            className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400"
-                                                            title="Rename note"
-                                                        >
-                                                            <FontAwesomeIcon icon={faPen} className="text-[8px]" />
-                                                        </button>
-                                                    )}
-
-                                                    {/* Export Dropdown */}
-                                                    <div className="relative">
-                                                        <button
-                                                            onClick={(e) => { 
-                                                                e.stopPropagation(); 
-                                                                setActiveExportMenuNoteUuid(activeExportMenuNoteUuid === n.uuid ? null : n.uuid); 
-                                                            }}
-                                                            className={`p-0.5 hover:bg-black/5 dark:hover:bg-white/5 rounded cursor-pointer ${activeExportMenuNoteUuid === n.uuid ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}
-                                                            title="Export note..."
-                                                        >
-                                                            <FontAwesomeIcon icon={faFileExport} className="text-[8px]" />
-                                                        </button>
-                                                        {activeExportMenuNoteUuid === n.uuid && (
-                                                            <>
-                                                                <div className="fixed inset-0 z-45 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveExportMenuNoteUuid(null); }} />
-                                                                <div className="absolute right-0 bottom-full mb-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-xl py-1 w-44 z-50 text-slate-700 dark:text-slate-200 text-left font-normal select-none">
-                                                                    <div className="px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-widest text-slate-455 border-b border-black/5 dark:border-white/5 mb-1">Export Note</div>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportNoteData(n.uuid, n.title, 'raw');
-                                                                            setActiveExportMenuNoteUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faFileLines} className="text-slate-400 w-3 text-center" />
-                                                                        Raw File
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportNoteData(n.uuid, n.title, 'json');
-                                                                            setActiveExportMenuNoteUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faFileCode} className="text-slate-400 w-3 text-center" />
-                                                                        JSON Backup
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportNoteData(n.uuid, n.title, 'csv');
-                                                                            setActiveExportMenuNoteUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faFileCsv} className="text-slate-400 w-3 text-center" />
-                                                                        CSV Spreadsheet
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleExportNoteData(n.uuid, n.title, 'db');
-                                                                            setActiveExportMenuNoteUuid(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] font-semibold flex items-center gap-2 cursor-pointer transition-colors text-slate-700 dark:text-slate-200"
-                                                                    >
-                                                                        <FontAwesomeIcon icon={faDatabase} className="text-slate-400 w-3 text-center" />
-                                                                        SQLite Database (.db)
-                                                                    </button>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Delete */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            confirm(`Delete note "${n.title}"? This will delete all its checklist items permanently.`) && onDeleteNote(n.uuid);
-                                                        }}
-                                                        className="p-0.5 hover:bg-black/5 rounded cursor-pointer text-slate-400 hover:text-rose-500"
-                                                        title="Delete note"
-                                                    >
-                                                        <FontAwesomeIcon icon={faTrashCan} className="text-[8px]" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {filteredNotes.length === 0 && (
-                                    <p className="text-center text-[10px] text-slate-455 italic pt-6 select-none">No notes match query.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Add Note & Daily Diary Buttons Row */}
-                        <div className="pt-2 border-t border-black/5 flex-shrink-0 flex flex-col gap-1.5">
-                            {isCreatingNote ? (
+                            ) : isCreatingNote ? (
                                 <input
                                     type="text"
                                     value={newNoteTitle}
                                     onChange={e => setNewNoteTitle(e.target.value)}
-                                    placeholder="Note title..."
+                                    placeholder="File name (e.g. App.jsx)..."
                                     autoFocus
                                     onKeyDown={e => {
                                         if (e.key === 'Enter') {
                                             let finalTitle = newNoteTitle.trim();
                                             if (!finalTitle) {
                                                 let index = 1;
-                                                while (folderNotes.some(n => n.title.toLowerCase() === `note ${index}.md`)) {
+                                                while (allNotes.some(n => n.title.toLowerCase() === `note ${index}.md`)) {
                                                     index++;
                                                 }
                                                 finalTitle = `Note ${index}.md`;
                                             } else {
                                                 const ext = finalTitle.split('.').pop().toLowerCase();
-                                                const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml'];
+                                                const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'ts', 'tsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml'];
                                                 if (finalTitle.split('.').length === 1 || !supported.includes(ext)) {
                                                     finalTitle += '.md';
                                                 }
@@ -1834,20 +1713,20 @@ export default function MainNotepadView({
                                         if (e.key === 'Escape') setIsCreatingNote(false);
                                     }}
                                     onBlur={() => setIsCreatingNote(false)}
-                                    className="w-full text-[10px] px-2 py-1 bg-slate-50 border border-black/10 rounded-lg focus:outline-none focus:border-slate-800"
+                                    className="w-full text-[10px] px-2 py-1 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none text-slate-800 dark:text-slate-100"
                                 />
                             ) : (
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => setIsCreatingNote(true)}
-                                        className="flex-1 py-1.5 border border-dashed border-black/15 hover:border-slate-855 hover:bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-all"
+                                        className="flex-1 py-1.5 border border-dashed border-black/15 dark:border-white/10 hover:border-slate-800 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg text-[9px] font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-all"
                                     >
                                         <FontAwesomeIcon icon={faPlus} /> Note
                                     </button>
                                     <button
                                         onClick={handleCreateTodaysDiary}
                                         className="py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100/70 border border-indigo-150 rounded-lg text-[9px] font-bold text-indigo-705 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-colors"
-                                        title="Today's Diary Entry"
+                                        title="Today's Diary Log"
                                     >
                                         <FontAwesomeIcon icon={faCalendarDay} /> Diary
                                     </button>
@@ -1857,23 +1736,102 @@ export default function MainNotepadView({
                     </div>
                 )}
 
-                {/* Resize Handle 2 */}
-                {!notesCollapsed && (
+                {/* Resize Handle for Explorer Sidebar */}
+                {!sidebarCollapsed && (
                     <div 
-                        onMouseDown={handleNotesResizeStart}
+                        onMouseDown={handleSidebarResizeStart}
                         className="w-1 cursor-col-resize hover:bg-indigo-500/50 bg-black/[0.03] hover:w-[6px] hover:-mx-[1px] transition-all duration-150 z-30 select-none flex-shrink-0"
-                        title="Drag to resize notes list panel"
+                        title="Drag to resize Explorer"
                     />
                 )}
 
                 {/* COLUMN 3: Note Editor Workspace */}
                 <div className={`flex-1 flex flex-col p-3 overflow-hidden min-h-0 select-text transition-all duration-350 ${selectedNote ? editorBodyBgClasses[selectedNote.theme] || 'bg-slate-100/30' : 'bg-slate-100/30'}`}>
+                    
+                    {/* Horizontal Tab Bar */}
+                    {openNoteUuids.length > 0 && (
+                        <div className={`flex items-center overflow-x-auto scrollbar-none border-b ${isDarkMode ? 'border-white/5 bg-slate-900/40' : 'border-black/5 bg-slate-100/50'} pb-1 px-1 mb-2 gap-1 flex-nowrap select-none flex-shrink-0`}>
+                            {openNoteUuids.map(uuid => {
+                                const tabNote = allNotes.find(n => n.uuid === uuid);
+                                if (!tabNote) return null;
+                                const isActive = uuid === selectedNoteUuid;
+                                
+                                const themeDotColors = {
+                                    yellow: 'bg-amber-400',
+                                    pink: 'bg-rose-455',
+                                    red: 'bg-rose-500',
+                                    blue: 'bg-sky-400',
+                                    green: 'bg-emerald-400'
+                                };
+                                
+                                return (
+                                    <div
+                                        key={uuid}
+                                        onClick={() => setSelectedNoteUuid(uuid)}
+                                        className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg border border-b-0 cursor-pointer transition-all duration-200 text-[10px] font-bold flex-shrink-0 ${
+                                            isActive
+                                                ? isDarkMode
+                                                    ? 'bg-slate-800/80 border-white/10 text-white font-extrabold shadow-sm'
+                                                    : 'bg-white border-black/10 text-slate-800 font-extrabold shadow-xs'
+                                                : isDarkMode
+                                                    ? 'bg-transparent border-transparent text-slate-400 hover:text-slate-200'
+                                                    : 'bg-transparent border-transparent text-slate-500 hover:text-slate-850'
+                                        }`}
+                                        style={isActive ? { borderTopColor: tabNote.theme === 'yellow' ? '#f59e0b' : tabNote.theme === 'pink' || tabNote.theme === 'red' ? '#e11d48' : tabNote.theme === 'blue' ? '#0284c7' : '#059669', borderTopWidth: '2px' } : {}}
+                                    >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${themeDotColors[tabNote.theme] || 'bg-slate-450'}`} />
+                                        <span className="truncate max-w-[100px]">{tabNote.title}</span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleCloseTab(uuid, e);
+                                            }}
+                                            className="p-0.5 rounded-full text-slate-400 hover:bg-black/10 dark:hover:bg-white/10 hover:text-rose-500 transition-colors opacity-60 group-hover:opacity-100"
+                                        >
+                                            <FontAwesomeIcon icon={faXmark} className="text-[7px]" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {!selectedNote ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 opacity-60 gap-1.5 select-none">
-                            <FontAwesomeIcon icon={faFilePen} className="text-3xl" />
-                            <span className="font-semibold text-[10px] uppercase tracking-wider">
-                                Select a Log Entry to Edit
-                            </span>
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-100/10 dark:bg-slate-900/10 backdrop-blur-md rounded-2xl border border-black/5 dark:border-white/5 shadow-inner select-none animate-in fade-in duration-300">
+                            <div className="max-w-md flex flex-col items-center gap-4">
+                                <div className="w-16 h-16 rounded-3xl bg-indigo-500/15 flex items-center justify-center text-indigo-500 dark:text-indigo-400 text-3xl shadow-md border border-indigo-500/25">
+                                    <FontAwesomeIcon icon={faFilePen} />
+                                </div>
+                                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Welcome to Notepad++ Alternative</h2>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    An offline, lightweight desktop editor for text and code formats. Get started by opening a file from the sidebar explorer, or create a new file or folder.
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-2 pt-2">
+                                    <button
+                                        onClick={() => setIsCreatingNote(true)}
+                                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold shadow-md cursor-pointer transition-colors flex items-center gap-1.5"
+                                    >
+                                        <FontAwesomeIcon icon={faPlus} /> New File
+                                    </button>
+                                    <button
+                                        onClick={() => setIsCreatingFolder(true)}
+                                        className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-black/10 dark:border-white/10 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-200 shadow-sm cursor-pointer transition-colors flex items-center gap-1.5"
+                                    >
+                                        <FontAwesomeIcon icon={faFolder} /> New Notebook
+                                    </button>
+                                    <button
+                                        onClick={() => setIsHelpOpen(true)}
+                                        className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-black/10 dark:border-white/10 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-200 shadow-sm cursor-pointer transition-colors flex items-center gap-1.5"
+                                    >
+                                        <FontAwesomeIcon icon={faCircleQuestion} /> Help & Shortcuts
+                                    </button>
+                                </div>
+                                <div className="w-full border-t border-black/5 dark:border-white/5 my-2" />
+                                <div className="text-[9px] text-slate-400 dark:text-slate-550 font-semibold space-y-1">
+                                    <div>Press <kbd className="bg-black/5 dark:bg-white/5 px-1 py-0.5 rounded border border-black/10">Ctrl + F</kbd> in edit mode to search/replace</div>
+                                    <div>Drag and drop local files into the sidebar tree to import them</div>
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -1893,7 +1851,7 @@ export default function MainNotepadView({
                                             onKeyDown={e => e.key === 'Enter' && commitNoteRename(selectedNote.uuid)}
                                             maxLength={25}
                                             autoFocus
-                                            className="bg-white border border-slate-350 rounded px-1.5 py-0.5 text-xs font-bold text-slate-805 focus:outline-none w-[180px]"
+                                            className="bg-white border border-slate-355 rounded px-1.5 py-0.5 text-xs font-bold text-slate-805 focus:outline-none w-[180px]"
                                         />
                                     ) : (
                                         <span 
@@ -1909,7 +1867,7 @@ export default function MainNotepadView({
                                 <div className="flex items-center gap-2 relative">
                                     <button 
                                         onClick={() => setEditorMenuOpen(!editorMenuOpen)}
-                                        className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-black/10 rounded-lg text-[9px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-sm select-none"
+                                        className="px-2.5 py-1.5 bg-white hover:bg-slate-55 border border-black/10 rounded-lg text-[9px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-sm select-none"
                                         title="Actions on note"
                                     >
                                         Actions <FontAwesomeIcon icon={faChevronDown} className="text-[8px] opacity-75" />
@@ -1917,7 +1875,7 @@ export default function MainNotepadView({
                                     
                                     {editorMenuOpen && (
                                         <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setEditorMenuOpen(false)} />
+                                            <div className="fixed inset-0 z-45 cursor-default" onClick={() => setEditorMenuOpen(false)} />
                                             <div className="absolute right-0 top-full mt-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-xl py-1 w-44 z-50 animate-in fade-in slide-in-from-top-1.5 duration-150 select-none text-slate-700 dark:text-slate-200">
                                                 <button
                                                     onClick={() => {
@@ -1947,7 +1905,7 @@ export default function MainNotepadView({
                                                     }}
                                                     className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[10px] text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                                                 >
-                                                    <FontAwesomeIcon icon={faFlag} className={`${selectedNote.isFlagged ? 'text-red-500 animate-pulse' : 'text-slate-400'} w-3 text-center`} />
+                                                    <FontAwesomeIcon icon={faFlag} className={`${selectedNote.isFlagged ? 'text-red-505 animate-pulse' : 'text-slate-400'} w-3 text-center`} />
                                                     {selectedNote.isFlagged ? 'Unflag Entry' : 'Flag Entry'}
                                                 </button>
                                                 <div className="border-t border-black/5 dark:border-white/5 my-1" />
@@ -2017,7 +1975,7 @@ export default function MainNotepadView({
                                     if (mode === 'todo' || mode === 'list') {
                                         return (
                                             <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-4 rounded-2xl border border-black/10 dark:border-white/10 mb-2 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
-                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2.5 block select-none">
+                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-2.5 block select-none">
                                                     {mode === 'todo' ? 'Tasks Checklist (.todo)' : 'Simple Checklist (.list)'}
                                                 </span>
                                                 <TaskForm onAddTask={handleAddTask} />
@@ -2043,7 +2001,7 @@ export default function MainNotepadView({
                                     if (mode === 'log') {
                                         return (
                                             <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-4 rounded-2xl border border-black/10 dark:border-white/10 mb-2 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
-                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2.5 block select-none">
+                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-2.5 block select-none">
                                                     Events Log (.log)
                                                 </span>
                                                 <EventForm onAddEvent={(text) => addEvent(selectedNoteUuid, text)} />
@@ -2058,7 +2016,7 @@ export default function MainNotepadView({
                                     if (mode === 'xpnc') {
                                         return (
                                             <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-4 rounded-2xl border border-black/10 dark:border-white/10 mb-2 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
-                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2.5 block select-none">
+                                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-2.5 block select-none">
                                                     Expenses Tracker (.xpnc)
                                                 </span>
                                                 <ExpenseForm onAddExpense={(amount, cat, desc) => addExpense(selectedNoteUuid, amount, cat, desc)} />

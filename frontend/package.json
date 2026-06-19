@@ -1,6 +1,6 @@
 {
   "name": "notepad-desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Offline Open Source Cross Platform Notepad Desktop App",
   "main": "backend/main.js",
   "type": "commonjs",
