@@ -1248,10 +1248,10 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
     const wrapClass = (isMarkdown || wrapLines) ? 'whitespace-pre-wrap overflow-x-hidden' : 'whitespace-pre overflow-x-auto';
 
     return (
-        <div className={`flex-1 flex flex-col min-h-0 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-lg select-text no-drag p-1 transition-all ${themeClass}`}>
+        <div className={`flex-1 flex flex-col min-h-0 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-lg select-text no-drag p-1 pt-0.5 transition-all ${themeClass}`}>
             
             {/* Redesigned Generic Toolbar */}
-            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-1 mb-1.5 select-none flex-wrap gap-2">
+            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-1 mb-1 select-none flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {/* View Modes */}
                     <div className="flex bg-black/5 dark:bg-white/5 p-0.5 rounded-lg border border-black/5 dark:border-white/5">

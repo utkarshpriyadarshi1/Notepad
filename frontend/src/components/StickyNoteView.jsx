@@ -362,6 +362,7 @@ export default function StickyNoteView({
                         // Preferences
                         editorPrefs={editorPrefs}
                         onUpdateEditorPrefs={onUpdateEditorPrefs}
+                        ipcRenderer={ipcRenderer}
                     />
                 </div>
             </div>

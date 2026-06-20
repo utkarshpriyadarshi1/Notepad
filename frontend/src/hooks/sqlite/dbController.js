@@ -1,7 +1,7 @@
 /* eslint-env node */
 import initSqlJs from 'sql.js';
 
-const LATEST_SCHEMA_VERSION = 13;
+const LATEST_SCHEMA_VERSION = 14;
 
 export async function initializeLocalDatabase(ipcRenderer, defaultName, currentWindowId = 'main_notepad') {
     try {
@@ -36,7 +36,7 @@ function buildNormalizedSchema(db, defaultName, currentWindowId) {
     db.run(`
         CREATE TABLE IF NOT EXISTS sys_migrations (migration_id INTEGER PRIMARY KEY AUTOINCREMENT, version_build INTEGER UNIQUE, executed_at DATETIME DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS sys_layout_state (layout_key TEXT PRIMARY KEY, open_note_uuids TEXT, selected_note_uuid TEXT);
-        CREATE TABLE IF NOT EXISTS sticky_folders (folder_uuid TEXT PRIMARY KEY, folder_name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS sticky_folders (folder_uuid TEXT PRIMARY KEY, folder_name TEXT, folder_color TEXT DEFAULT 'indigo', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS sticky_notes (
             note_uuid TEXT PRIMARY KEY, 
             parent_folder_uuid TEXT, 
@@ -301,6 +301,16 @@ function executeDatabaseUpgrades(db, defaultName, currentWindowId) {
                     console.log("⚡ [Migration] Created sys_layout_state table.");
                 } catch (e) {
                     console.error("Migration: failed to create sys_layout_state table:", e);
+                }
+            }
+
+            // Upgrade to 14: Add folder_color column to sticky_folders
+            if (activeVersion < 14) {
+                try {
+                    db.run("ALTER TABLE sticky_folders ADD COLUMN folder_color TEXT DEFAULT 'indigo'");
+                    console.log("⚡ [Migration] Added folder_color column to sticky_folders table.");
+                } catch (e) {
+                    console.warn("Migration: column folder_color might already exist on sticky_folders:", e);
                 }
             }
 

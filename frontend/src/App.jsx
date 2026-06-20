@@ -40,7 +40,8 @@ export default function App() {
             enableMultiCursor: false,
             enableLocalFileAutoSync: true,
             defaultFileName: 'Note',
-            defaultFolderName: 'Notebook'
+            defaultFolderName: 'Notebook',
+            defaultFileType: 'md'
         };
     });
 

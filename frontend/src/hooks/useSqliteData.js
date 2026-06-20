@@ -89,12 +89,13 @@ export function useSqliteData() {
             }
 
             // Query all folders
-            const foldersQuery = "SELECT folder_uuid, folder_name FROM sticky_folders";
+            const foldersQuery = "SELECT folder_uuid, folder_name, folder_color FROM sticky_folders";
             const foldersRes = targetDb.exec(foldersQuery);
             if (foldersRes && foldersRes.length > 0 && foldersRes[0].values) {
                 setAllFolders(foldersRes[0].values.map(row => ({
                     uuid: row[0],
-                    name: row[1]
+                    name: row[1],
+                    color: row[2] || 'indigo'
                 })));
             } else {
                 setAllFolders([]);

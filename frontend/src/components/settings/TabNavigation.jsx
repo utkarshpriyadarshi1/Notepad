@@ -1,5 +1,5 @@
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faSliders, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faSliders, faXmark, faDatabase, faTerminal} from '@fortawesome/free-solid-svg-icons';
 
 export default function TabNavigation({activeTab, setActiveTab, onClose}) {
     return (<div
@@ -10,6 +10,18 @@ export default function TabNavigation({activeTab, setActiveTab, onClose}) {
                     className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'config' ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`}
                 >
                     <FontAwesomeIcon icon={faSliders}/> Config
+                </button>
+                <button
+                    onClick={() => setActiveTab("diagnostics")}
+                    className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'diagnostics' ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                >
+                    <FontAwesomeIcon icon={faDatabase}/> Diagnostics
+                </button>
+                <button
+                    onClick={() => setActiveTab("logs")}
+                    className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'logs' ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                >
+                    <FontAwesomeIcon icon={faTerminal}/> Logs
                 </button>
             </div>
             <div className="group relative flex items-center">

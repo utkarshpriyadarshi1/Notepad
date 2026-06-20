@@ -10,6 +10,7 @@ Track pending tasks, improvements, and achievements for the Notepad application.
 - [x] **VCS Auto-Versioning**: Established a robust background timer that creates local SQLite revision checkpoints for open documents every 10 minutes.
 - [x] **Clean Decoupled Architecture**: Cleaned up the app layout and consolidated environment scripts in `builder/` and client code in `frontend/`.
 - [x] **Centralized Configuration**: Configured versions, icons, and theme colors into a single root `app.config.json` file.
+- [x] **Diagnostics & System Logs View**: Added cache metrics trackers, cache cleaning, full application reset routines, and a parsed scrollable terminal log view in Settings.
 
 ## 📋 Backlog & Feature Pipeline
 - [ ] **Find & Replace Enhancements**: Add toggle buttons for case-sensitivity, whole word match, and regular expression (regex) search patterns.

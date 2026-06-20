@@ -43,8 +43,9 @@ Notepad is an offline-first code and text editor. This document catalogues all c
 - **Global VCS snapshots worker**: Automatically checks all open documents every 10 minutes and commits snapshot revisions to SQLite for any modified notes.
 - **History Panel**: View past snapshots of the current file and restore previous commits.
 
-### 3.2 Preferences & Diagnostics
-- **Preferences Dashboard**:
-  - **Config Tab**: Diagnostics panel detailing SQLite file sizes and runtime log files. Purges caches or resets database tables directly.
-  - **Data Hub Tab**: Master checklist database table manager that lets users toggle, rename, delete, or export individual checklist tasks globally.
-- **JSON Import/Export**: Bundle the entire local SQLite schema into JSON files. Supports backward-compatible imports from older sticky widget database profiles.
+### 3.2 Preferences, Diagnostics & Log Viewer
+- **Preferences & System Panels**:
+  - **Config Tab**: Exposes backup export/import actions, application configurations, language settings, and core service status indicators.
+  - **Diagnostics Tab**: Telemetry tool outlining actual allocations for browser cache, SQLite database files, and system logs, with hard maintenance actions (clear cache, clean logs, app reset).
+  - **System Logs Tab**: An interactive dark monospaced terminal displaying parsed log logs from the frontend and backend. Includes text search, category grouping (UI vs Core Engine), level filters, and clipboard copy.
+- **JSON Import/Export**: Bundle the entire local SQLite schema into portable JSON files. Supports backward-compatible imports from older sticky widget database profiles.

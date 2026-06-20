@@ -1,6 +1,8 @@
 import {useState} from 'react';
 import TabNavigation from './settings/TabNavigation';
 import PreferencesTab from './settings/PreferencesTab';
+import DiagnosticsTab from './settings/DiagnosticsTab';
+import LogsTab from './settings/LogsTab';
 
 export default function SettingsPanel({
                                            isOpen,
@@ -23,7 +25,9 @@ export default function SettingsPanel({
 
                                            // Preferences
                                            editorPrefs,
-                                           onUpdateEditorPrefs
+                                           onUpdateEditorPrefs,
+                                           
+                                           ipcRenderer
                                        }) {
     const [activeTab, setActiveTab] = useState("config");
 
@@ -46,6 +50,19 @@ export default function SettingsPanel({
                         onUpdateEditorPrefs={onUpdateEditorPrefs}
                     />
                 );
+            case "diagnostics":
+                return (
+                    <DiagnosticsTab
+                        onResetDatabase={onResetDatabase}
+                        ipcRenderer={ipcRenderer}
+                    />
+                );
+            case "logs":
+                return (
+                    <LogsTab
+                        ipcRenderer={ipcRenderer}
+                    />
+                );
             default:
                 return null;
         }
@@ -54,7 +71,7 @@ export default function SettingsPanel({
     return (<div style={{WebkitAppRegion: 'no-drag'}}
                  className="absolute inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-3 z-50 animate-in fade-in duration-150">
         <div
-            className="w-[96%] h-[94%] bg-white rounded-2xl shadow-2xl border border-black/10 flex flex-col overflow-hidden text-slate-800">
+            className="w-[96%] h-[94%] bg-white rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 flex flex-col overflow-hidden text-slate-800 dark:bg-slate-900/90 dark:text-slate-100">
 
             {/* 1. Sub-Header Navigation Tabs Row */}
             <TabNavigation
@@ -68,7 +85,7 @@ export default function SettingsPanel({
 
             {/* 3. Bottom Footer */}
             <div
-                className="p-1.5 bg-slate-50 border-t border-black/5 text-center text-[8px] font-bold text-slate-400 flex-shrink-0 uppercase tracking-widest select-none">
+                className="p-1.5 bg-slate-50 dark:bg-slate-950 border-t border-black/5 dark:border-white/5 text-center text-[8px] font-bold text-slate-400 dark:text-slate-550 flex-shrink-0 uppercase tracking-widest select-none">
                 {appName} Core Relational Manager Panel Connected
             </div>
         </div>

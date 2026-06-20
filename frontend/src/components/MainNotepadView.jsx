@@ -37,7 +37,8 @@ import {
     faFileCsv,
     faFileCode,
     faDatabase,
-    faColumns
+    faColumns,
+    faPlay
 } from '@fortawesome/free-solid-svg-icons';
 import { persistDatabaseToDisk } from '../hooks/sqlite/dbController';
 import GenericEditorWorkspace from './GenericEditorWorkspace';
@@ -126,6 +127,12 @@ export default function MainNotepadView({
     const [showVcsPanel, setShowVcsPanel] = useState(false);
     const [editorMenuOpen, setEditorMenuOpen] = useState(false);
     const [compareOpen, setCompareOpen] = useState(false);
+    const [activeFolderPaletteUuid, setActiveFolderPaletteUuid] = useState(null);
+    const [activeNotePaletteUuid, setActiveNotePaletteUuid] = useState(null);
+    const [sqlResult, setSqlResult] = useState(null);
+    const [sqlModalOpen, setSqlModalOpen] = useState(false);
+    const [isOpenTabsMenuOpen, setIsOpenTabsMenuOpen] = useState(false);
+    const [tabSearchQuery, setTabSearchQuery] = useState('');
 
     // Unified sidebar states
     const [sidebarWidth, setSidebarWidth] = useState(260);
@@ -208,6 +215,248 @@ export default function MainNotepadView({
         }
     };
 
+    const getFileIconColorClass = (title, isSelected) => {
+        if (isSelected) return 'text-indigo-600 dark:text-indigo-400';
+        const mode = getEditorModeFromTitle(title);
+        switch (mode) {
+            case 'todo':
+            case 'list':
+                return 'text-emerald-500 dark:text-emerald-400';
+            case 'sql':
+                return 'text-amber-500 dark:text-amber-400';
+            case 'properties':
+            case 'yml':
+            case 'yaml':
+                return 'text-orange-500 dark:text-orange-400';
+            case 'js':
+            case 'jsx':
+            case 'ts':
+            case 'tsx':
+                return 'text-sky-500 dark:text-sky-400';
+            case 'html':
+            case 'css':
+                return 'text-pink-500 dark:text-pink-400';
+            case 'json':
+            case 'xml':
+                return 'text-purple-500 dark:text-purple-400';
+            case 'log':
+                return 'text-rose-500 dark:text-rose-400';
+            case 'xpnc':
+                return 'text-indigo-500 dark:text-indigo-400';
+            default:
+                return 'text-slate-400 dark:text-slate-550';
+        }
+    };
+
+    const folderColorClasses = {
+        indigo: 'text-indigo-500 dark:text-indigo-400',
+        rose: 'text-rose-500 dark:text-rose-400',
+        amber: 'text-amber-500 dark:text-amber-400',
+        emerald: 'text-emerald-500 dark:text-emerald-400',
+        sky: 'text-sky-500 dark:text-sky-400',
+        violet: 'text-violet-500 dark:text-violet-400'
+    };
+
+    const getNoteClasses = (n, isSelected) => {
+        const theme = n.theme || 'yellow';
+        const themeMap = {
+            red: 'rose',
+            pink: 'rose',
+            yellow: 'amber',
+            blue: 'sky',
+            green: 'emerald',
+            indigo: 'indigo',
+            rose: 'rose',
+            amber: 'amber',
+            emerald: 'emerald',
+            sky: 'sky',
+            violet: 'violet'
+        };
+        const key = themeMap[theme] || 'indigo';
+
+        const selectedStyles = {
+            rose: 'bg-rose-500/25 border-rose-500/30 text-rose-800 dark:text-rose-200 font-semibold shadow-xs border-l-2 border-l-rose-500',
+            amber: 'bg-amber-500/25 border-amber-500/30 text-amber-900 dark:text-amber-200 font-semibold shadow-xs border-l-2 border-l-amber-500',
+            sky: 'bg-sky-500/25 border-sky-500/30 text-sky-850 dark:text-sky-200 font-semibold shadow-xs border-l-2 border-l-sky-500',
+            emerald: 'bg-emerald-500/25 border-emerald-500/30 text-emerald-850 dark:text-emerald-200 font-semibold shadow-xs border-l-2 border-l-emerald-500',
+            indigo: 'bg-indigo-500/25 border-indigo-500/30 text-indigo-850 dark:text-indigo-200 font-semibold shadow-xs border-l-2 border-l-indigo-500',
+            violet: 'bg-violet-500/25 border-violet-500/30 text-violet-850 dark:text-violet-200 font-semibold shadow-xs border-l-2 border-l-violet-500'
+        };
+
+        const unselectedStyles = {
+            rose: 'bg-rose-500/10 hover:bg-rose-500/18 border-transparent hover:border-rose-500/20 text-slate-655 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white',
+            amber: 'bg-amber-500/10 hover:bg-amber-500/18 border-transparent hover:border-amber-500/20 text-slate-655 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white',
+            sky: 'bg-sky-500/10 hover:bg-sky-500/18 border-transparent hover:border-sky-500/20 text-slate-655 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white',
+            emerald: 'bg-emerald-500/10 hover:bg-emerald-500/18 border-transparent hover:border-emerald-500/20 text-slate-655 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white',
+            indigo: 'bg-indigo-500/10 hover:bg-indigo-500/18 border-transparent hover:border-indigo-500/20 text-slate-655 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white',
+            violet: 'bg-violet-500/10 hover:bg-violet-500/18 border-transparent hover:border-violet-500/20 text-slate-655 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white'
+        };
+
+        if (isSelected) {
+            return selectedStyles[key] || selectedStyles.indigo;
+        } else {
+            return unselectedStyles[key] || unselectedStyles.indigo;
+        }
+    };
+
+    const getTabClasses = (tabNote, isActive) => {
+        const theme = tabNote.theme || 'yellow';
+        
+        // Map themes to normalized keys for simple CSS building
+        const themeMap = {
+            red: 'rose',
+            pink: 'rose',
+            yellow: 'amber',
+            blue: 'sky',
+            green: 'emerald',
+            indigo: 'indigo',
+            rose: 'rose',
+            amber: 'amber',
+            emerald: 'emerald',
+            sky: 'sky',
+            violet: 'violet'
+        };
+        const key = themeMap[theme] || 'indigo';
+
+        // Background, Border, Text classes for dynamic premium tabs
+        const styles = {
+            indigo: {
+                darkActive: 'bg-indigo-900/80 border-indigo-750 text-indigo-100 shadow-sm',
+                darkInactive: 'bg-indigo-950/40 border-transparent text-indigo-350 hover:bg-indigo-900/40 hover:text-indigo-200',
+                lightActive: 'bg-indigo-200 border-indigo-300 text-indigo-900 shadow-sm',
+                lightInactive: 'bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900'
+            },
+            rose: {
+                darkActive: 'bg-rose-900/80 border-rose-750 text-rose-100 shadow-sm',
+                darkInactive: 'bg-rose-955/40 border-transparent text-rose-350 hover:bg-rose-900/40 hover:text-rose-200',
+                lightActive: 'bg-rose-200 border-rose-300 text-rose-900 shadow-sm',
+                lightInactive: 'bg-rose-100/50 border-transparent text-rose-700 hover:bg-rose-100 hover:text-rose-900'
+            },
+            amber: {
+                darkActive: 'bg-amber-900/80 border-amber-750 text-amber-100 shadow-sm',
+                darkInactive: 'bg-amber-955/40 border-transparent text-amber-400/80 hover:bg-amber-900/40 hover:text-amber-200',
+                lightActive: 'bg-amber-200 border-amber-300 text-amber-900 shadow-sm',
+                lightInactive: 'bg-amber-100/50 border-transparent text-amber-700 hover:bg-amber-100 hover:text-amber-900'
+            },
+            emerald: {
+                darkActive: 'bg-emerald-900/80 border-emerald-750 text-emerald-100 shadow-sm',
+                darkInactive: 'bg-emerald-955/40 border-transparent text-emerald-350 hover:bg-emerald-900/40 hover:text-emerald-200',
+                lightActive: 'bg-emerald-200 border-emerald-300 text-emerald-900 shadow-sm',
+                lightInactive: 'bg-emerald-100/50 border-transparent text-emerald-700 hover:bg-emerald-100/40 hover:text-emerald-900'
+            },
+            sky: {
+                darkActive: 'bg-sky-900/80 border-sky-750 text-sky-100 shadow-sm',
+                darkInactive: 'bg-sky-955/40 border-transparent text-sky-350 hover:bg-sky-900/40 hover:text-sky-200',
+                lightActive: 'bg-sky-200 border-sky-300 text-sky-900 shadow-sm',
+                lightInactive: 'bg-sky-100/50 border-transparent text-sky-700 hover:bg-sky-100 hover:text-sky-900'
+            },
+            violet: {
+                darkActive: 'bg-violet-900/80 border-violet-750 text-violet-100 shadow-sm',
+                darkInactive: 'bg-violet-955/40 border-transparent text-violet-350 hover:bg-violet-900/40 hover:text-violet-200',
+                lightActive: 'bg-violet-200 border-violet-300 text-violet-900 shadow-sm',
+                lightInactive: 'bg-violet-100/50 border-transparent text-violet-700 hover:bg-violet-100 hover:text-violet-800'
+            }
+        };
+
+        const currentStyle = styles[key] || styles.indigo;
+        if (isDarkMode) {
+            return isActive ? currentStyle.darkActive : currentStyle.darkInactive;
+        } else {
+            return isActive ? currentStyle.lightActive : currentStyle.lightInactive;
+        }
+    };
+
+    const handleTabBarWheel = (e) => {
+        if (e.deltaY !== 0) {
+            e.preventDefault();
+            e.currentTarget.scrollLeft += e.deltaY;
+        }
+    };
+
+    const getContextLabel = (filename) => {
+        const ext = getEditorModeFromTitle(filename);
+        const labelMap = {
+            md: 'Markdown Actions',
+            todo: 'Checklist Actions',
+            list: 'Checklist Actions',
+            log: 'Logging Actions',
+            xpnc: 'Expense Actions',
+            sql: 'SQL Database Actions',
+            js: 'JavaScript Actions',
+            jsx: 'React Component Actions',
+            json: 'JSON Actions',
+            html: 'HTML Markup Actions',
+            css: 'CSS Styling Actions'
+        };
+        return labelMap[ext] || `${ext.toUpperCase()} Actions`;
+    };
+
+    const handleUpdateFolderColor = (folderUuid, color) => {
+        if (!db) return;
+        try {
+            db.run("UPDATE sticky_folders SET folder_color = ? WHERE folder_uuid = ?", [color, folderUuid]);
+            persistDatabaseToDisk(ipcRenderer, db);
+            onTriggerRefresh();
+        } catch (e) {
+            console.error("Failed to update folder color:", e);
+        }
+    };
+
+    const handleExecuteSqlQuery = () => {
+        if (!db || !selectedNote) return;
+        
+        let queryText = latestContentRef.current || markdownText || '';
+        queryText = queryText.trim();
+        if (!queryText) {
+            setSqlResult({
+                columns: [],
+                rows: [],
+                error: 'SQL script is empty. Please enter a valid SQL command.',
+                rowsAffected: 0
+            });
+            setSqlModalOpen(true);
+            return;
+        }
+
+        try {
+            const results = db.exec(queryText);
+            let rowsModified = 0;
+            try {
+                rowsModified = db.getRowsModified();
+            } catch (err) {
+                console.warn("Could not get modified rows:", err);
+            }
+
+            if (results && results.length > 0) {
+                const lastResult = results[results.length - 1];
+                setSqlResult({
+                    columns: lastResult.columns || [],
+                    rows: lastResult.values || [],
+                    error: null,
+                    rowsAffected: rowsModified
+                });
+            } else {
+                setSqlResult({
+                    columns: [],
+                    rows: [],
+                    error: null,
+                    rowsAffected: rowsModified,
+                    successMessage: 'SQL script executed successfully.'
+                });
+            }
+            persistDatabaseToDisk(ipcRenderer, db);
+            onTriggerRefresh();
+        } catch (error) {
+            setSqlResult({
+                columns: [],
+                rows: [],
+                error: error.message || 'An error occurred during query execution.',
+                rowsAffected: 0
+            });
+        }
+        setSqlModalOpen(true);
+    };
+
     const [editingFolderUuid, setEditingFolderUuid] = useState(null);
     const [folderRenameVal, setFolderRenameVal] = useState("");
 
@@ -231,11 +480,12 @@ export default function MainNotepadView({
 
     const handleAutoCreateNote = async (folderUuid = activeFolderUuid) => {
         const baseFileName = editorPrefs?.defaultFileName || 'Note';
+        const defaultExt = editorPrefs?.defaultFileType || 'md';
         let index = 1;
-        while (allNotes.some(n => n.title.toLowerCase() === `${baseFileName.toLowerCase()} ${index}.md`)) {
+        while (allNotes.some(n => n.title.toLowerCase() === `${baseFileName.toLowerCase()} ${index}.${defaultExt}`)) {
             index++;
         }
-        const finalTitle = `${baseFileName} ${index}.md`;
+        const finalTitle = `${baseFileName} ${index}.${defaultExt}`;
         const newNoteUuid = onCreateNoteInFolder(folderUuid, finalTitle);
         if (newNoteUuid) {
             setSelectedNoteUuid(newNoteUuid);
@@ -312,6 +562,7 @@ export default function MainNotepadView({
 
                         const targetNote = allNotes.find(n => n.uuid === prevSelectedNoteUuidRef.current);
                         if (targetNote && targetNote.localFilePath && editorPrefs.enableLocalFileAutoSync !== false && ipcRenderer) {
+                            lastWrittenContentsRef.current[prevSelectedNoteUuidRef.current] = latestContentRef.current;
                             ipcRenderer.invoke('write-local-file', targetNote.localFilePath, latestContentRef.current);
                         }
                     } catch (err) {
@@ -334,6 +585,8 @@ export default function MainNotepadView({
 
     // Restore layout state once database boots and layout is loaded
     const layoutRestoredRef = useRef(false);
+    const prevLayoutRef = useRef({ openNoteUuids: [], selectedNoteUuid: null });
+
     useEffect(() => {
         if (!layoutRestoredRef.current && allNotes.length > 0) {
             const noteUuids = allNotes.map(n => n.uuid);
@@ -341,43 +594,81 @@ export default function MainNotepadView({
                 const validOpenUuids = savedOpenUuids.filter(id => noteUuids.includes(id));
                 setOpenNoteUuids(validOpenUuids);
 
+                let targetSelected = null;
                 if (savedSelectedUuid && noteUuids.includes(savedSelectedUuid)) {
-                    setSelectedNoteUuid(savedSelectedUuid);
+                    targetSelected = savedSelectedUuid;
                 } else if (validOpenUuids.length > 0) {
-                    setSelectedNoteUuid(validOpenUuids[0]);
+                    targetSelected = validOpenUuids[0];
                 }
+
+                if (targetSelected) {
+                    setSelectedNoteUuid(targetSelected);
+                }
+
+                prevLayoutRef.current = { openNoteUuids: validOpenUuids, selectedNoteUuid: targetSelected };
             }
             layoutRestoredRef.current = true;
         }
     }, [savedOpenUuids, savedSelectedUuid, allNotes]);
 
+    // Keep stable ref for onSaveLayoutState to prevent triggering effect on db/callback change
+    const onSaveLayoutStateRef = useRef(onSaveLayoutState);
+    useEffect(() => {
+        onSaveLayoutStateRef.current = onSaveLayoutState;
+    }, [onSaveLayoutState]);
+
     // Persist layout state changes back to SQLite
     useEffect(() => {
         if (layoutRestoredRef.current) {
-            onSaveLayoutState(openNoteUuids, selectedNoteUuid);
+            const prev = prevLayoutRef.current;
+            const openChanged = JSON.stringify(prev.openNoteUuids) !== JSON.stringify(openNoteUuids);
+            const selectedChanged = prev.selectedNoteUuid !== selectedNoteUuid;
+
+            if (openChanged || selectedChanged) {
+                onSaveLayoutStateRef.current(openNoteUuids, selectedNoteUuid);
+                prevLayoutRef.current = { openNoteUuids, selectedNoteUuid };
+            }
         }
-    }, [openNoteUuids, selectedNoteUuid, onSaveLayoutState]);
+    }, [openNoteUuids, selectedNoteUuid]);
+
+    // Auto-close tabs dropdown menu when only 1 or 0 tabs remain open
+    useEffect(() => {
+        if (openNoteUuids.length <= 1) {
+            setIsOpenTabsMenuOpen(false);
+            setTabSearchQuery('');
+        }
+    }, [openNoteUuids.length]);
 
     // Watch open files that have a localFilePath
     useEffect(() => {
         if (!ipcRenderer || !layoutRestoredRef.current) return;
 
         const openNotesWithLocalPath = allNotes.filter(n => openNoteUuids.includes(n.uuid) && n.localFilePath);
+        const currentWatched = watchedNotesRef.current;
+        const nextWatched = {};
 
+        // Watch new files
         openNotesWithLocalPath.forEach(n => {
-            ipcRenderer.invoke('watch-local-file', n.localFilePath, n.uuid);
-        });
-
-        allNotes.forEach(n => {
-            if (!openNoteUuids.includes(n.uuid) && n.localFilePath) {
-                ipcRenderer.invoke('unwatch-local-file', n.uuid);
+            nextWatched[n.uuid] = n.localFilePath;
+            if (currentWatched[n.uuid] !== n.localFilePath) {
+                ipcRenderer.invoke('watch-local-file', n.localFilePath, n.uuid);
             }
         });
 
+        // Unwatch files that are no longer open or no longer have localFilePath
+        Object.keys(currentWatched).forEach(uuid => {
+            if (!nextWatched[uuid]) {
+                ipcRenderer.invoke('unwatch-local-file', uuid);
+            }
+        });
+
+        watchedNotesRef.current = nextWatched;
+
         return () => {
-            openNotesWithLocalPath.forEach(n => {
-                ipcRenderer.invoke('unwatch-local-file', n.uuid);
+            Object.keys(watchedNotesRef.current).forEach(uuid => {
+                ipcRenderer.invoke('unwatch-local-file', uuid);
             });
+            watchedNotesRef.current = {};
         };
     }, [openNoteUuids, allNotes, ipcRenderer]);
 
@@ -388,11 +679,18 @@ export default function MainNotepadView({
         const handleLocalFileChange = (event, { noteUuid, filePath, content }) => {
             if (editorPrefs.enableLocalFileAutoSync === false) return;
 
-            const targetNote = allNotes.find(n => n.uuid === noteUuid);
+            // If this change event matches what we just wrote, ignore it (echo loop prevention)
+            if (lastWrittenContentsRef.current[noteUuid] === content) {
+                return;
+            }
+
+            const targetNote = allNotesRef.current.find(n => n.uuid === noteUuid);
             if (!targetNote) return;
 
-            if (noteUuid === selectedNoteUuid) {
-                if (markdownText !== content) {
+            const activeUuid = selectedNoteUuidRef.current;
+
+            if (noteUuid === activeUuid) {
+                if (latestContentRef.current !== content) {
                     try {
                         db.run("UPDATE sticky_notes SET note_markdown_content = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [content, noteUuid]);
                         persistDatabaseToDisk(ipcRenderer, db);
@@ -417,15 +715,21 @@ export default function MainNotepadView({
         return () => {
             ipcRenderer.removeListener('local-file-changed', handleLocalFileChange);
         };
-    }, [ipcRenderer, allNotes, selectedNoteUuid, markdownText, db, editorPrefs.enableLocalFileAutoSync, onTriggerRefresh]);
+    }, [ipcRenderer, db, editorPrefs.enableLocalFileAutoSync, onTriggerRefresh]);
 
-    const colors = ['red', 'yellow', 'blue', 'green'];
+    const colors = ['red', 'yellow', 'blue', 'green', 'indigo', 'rose', 'amber', 'emerald', 'sky', 'violet'];
     const bgClasses = {
         yellow: 'bg-amber-400',
         pink: 'bg-rose-400',
         red: 'bg-rose-500',
         blue: 'bg-sky-400',
-        green: 'bg-emerald-400'
+        green: 'bg-emerald-400',
+        indigo: 'bg-indigo-500',
+        rose: 'bg-rose-500',
+        amber: 'bg-amber-500',
+        emerald: 'bg-emerald-500',
+        sky: 'bg-sky-500',
+        violet: 'bg-violet-500'
     };
     
     const headerBgColorClasses = {
@@ -433,7 +737,13 @@ export default function MainNotepadView({
         pink: 'bg-rose-100',
         red: 'bg-rose-150',
         blue: 'bg-sky-100',
-        green: 'bg-emerald-100'
+        green: 'bg-emerald-100',
+        indigo: 'bg-indigo-100',
+        rose: 'bg-rose-100',
+        amber: 'bg-amber-100',
+        emerald: 'bg-emerald-100',
+        sky: 'bg-sky-100',
+        violet: 'bg-violet-100'
     };
 
     const editorBodyBgClasses = {
@@ -441,7 +751,13 @@ export default function MainNotepadView({
         pink: 'bg-rose-50/50 border-rose-200/30 dark:bg-rose-955/5',
         red: 'bg-rose-50/50 border-rose-200/30 dark:bg-rose-955/5',
         blue: 'bg-sky-50/50 border-sky-200/30 dark:bg-sky-955/5',
-        green: 'bg-emerald-50/50 border-emerald-200/30 dark:bg-emerald-955/5'
+        green: 'bg-emerald-50/50 border-emerald-200/30 dark:bg-emerald-955/5',
+        indigo: 'bg-indigo-50/50 border-indigo-200/30 dark:bg-indigo-955/5',
+        rose: 'bg-rose-50/50 border-rose-200/30 dark:bg-rose-955/5',
+        amber: 'bg-amber-50/50 border-amber-200/30 dark:bg-amber-955/5',
+        emerald: 'bg-emerald-50/50 border-emerald-200/30 dark:bg-emerald-955/5',
+        sky: 'bg-sky-50/50 border-sky-200/30 dark:bg-sky-955/5',
+        violet: 'bg-violet-50/50 border-violet-200/30 dark:bg-violet-955/5'
     };
 
     const cardBgClasses = {
@@ -449,7 +765,13 @@ export default function MainNotepadView({
         pink: 'bg-rose-50/90 border-rose-200/80 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
         red: 'bg-rose-50/90 border-rose-200/80 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
         blue: 'bg-sky-50/90 border-sky-200/80 hover:border-sky-300 dark:bg-sky-955/10 dark:border-sky-900/30 dark:hover:border-sky-800',
-        green: 'bg-emerald-50/90 border-emerald-200/80 hover:border-emerald-300 dark:bg-emerald-955/10 dark:border-emerald-900/30 dark:hover:border-emerald-800'
+        green: 'bg-emerald-50/90 border-emerald-200/80 hover:border-emerald-300 dark:bg-emerald-955/10 dark:border-emerald-900/30 dark:hover:border-emerald-800',
+        indigo: 'bg-indigo-50/90 border-indigo-200/80 hover:border-indigo-300 dark:bg-indigo-955/10 dark:border-indigo-900/30 dark:hover:border-indigo-800',
+        rose: 'bg-rose-50/90 border-rose-200/80 hover:border-rose-300 dark:bg-rose-955/10 dark:border-rose-900/30 dark:hover:border-rose-800',
+        amber: 'bg-amber-50/90 border-amber-200/80 hover:border-amber-300 dark:bg-amber-955/10 dark:border-amber-900/30 dark:hover:border-amber-800',
+        emerald: 'bg-emerald-50/90 border-emerald-200/80 hover:border-emerald-300 dark:bg-emerald-955/10 dark:border-emerald-900/30 dark:hover:border-emerald-800',
+        sky: 'bg-sky-50/90 border-sky-200/80 hover:border-sky-300 dark:bg-sky-955/10 dark:border-sky-900/30 dark:hover:border-sky-800',
+        violet: 'bg-violet-50/90 border-violet-200/80 hover:border-violet-300 dark:bg-violet-955/10 dark:border-violet-900/30 dark:hover:border-violet-800'
     };
 
     const cardSelectedClasses = {
@@ -457,7 +779,13 @@ export default function MainNotepadView({
         pink: 'ring-1 ring-rose-500 border-rose-500 bg-rose-50 dark:bg-rose-955/30 shadow-xs',
         red: 'ring-1 ring-rose-500 border-rose-500 bg-rose-50 dark:bg-rose-955/30 shadow-xs',
         blue: 'ring-1 ring-sky-500 border-sky-500 bg-sky-50 dark:bg-sky-955/30 shadow-xs',
-        green: 'ring-1 ring-emerald-500 border-emerald-500 bg-emerald-50 dark:bg-emerald-955/30 shadow-xs'
+        green: 'ring-1 ring-emerald-500 border-emerald-500 bg-emerald-50 dark:bg-emerald-955/30 shadow-xs',
+        indigo: 'ring-1 ring-indigo-500 border-indigo-500 bg-indigo-50 dark:bg-indigo-955/30 shadow-xs',
+        rose: 'ring-1 ring-rose-500 border-rose-500 bg-rose-50 dark:bg-rose-955/30 shadow-xs',
+        amber: 'ring-1 ring-amber-500 border-amber-500 bg-amber-50 dark:bg-amber-955/30 shadow-xs',
+        emerald: 'ring-1 ring-emerald-500 border-emerald-500 bg-emerald-50 dark:bg-emerald-955/30 shadow-xs',
+        sky: 'ring-1 ring-sky-500 border-sky-500 bg-sky-50 dark:bg-sky-955/30 shadow-xs',
+        violet: 'ring-1 ring-violet-500 border-violet-500 bg-violet-50 dark:bg-violet-955/30 shadow-xs'
     };
 
     const priorityFlags = {
@@ -465,7 +793,13 @@ export default function MainNotepadView({
         pink: { label: 'Highest Priority', flagColor: 'text-rose-500', bgClass: 'bg-rose-500' },
         yellow: { label: 'Higher Priority', flagColor: 'text-amber-500', bgClass: 'bg-amber-400' },
         blue: { label: 'Low Priority', flagColor: 'text-sky-400', bgClass: 'bg-sky-400' },
-        green: { label: 'Very Low Priority', flagColor: 'text-emerald-400', bgClass: 'bg-emerald-400' }
+        green: { label: 'Very Low Priority', flagColor: 'text-emerald-400', bgClass: 'bg-emerald-400' },
+        indigo: { label: 'Indigo Theme', flagColor: 'text-indigo-400', bgClass: 'bg-indigo-400' },
+        rose: { label: 'Rose Theme', flagColor: 'text-rose-450', bgClass: 'bg-rose-500' },
+        amber: { label: 'Amber Theme', flagColor: 'text-amber-400', bgClass: 'bg-amber-400' },
+        emerald: { label: 'Emerald Theme', flagColor: 'text-emerald-400', bgClass: 'bg-emerald-400' },
+        sky: { label: 'Sky Theme', flagColor: 'text-sky-400', bgClass: 'bg-sky-400' },
+        violet: { label: 'Violet Theme', flagColor: 'text-violet-400', bgClass: 'bg-violet-400' }
     };
 
     // Fetch and Sync all open windows visibility/pin status
@@ -537,12 +871,27 @@ export default function MainNotepadView({
     const allNotesRef = useRef(allNotes);
     const getVcsCommitsRef = useRef(getVcsCommits);
     const addVcsCommitRef = useRef(addVcsCommit);
+    const lastWrittenContentsRef = useRef({});
+    const watchedNotesRef = useRef({});
 
     useEffect(() => { selectedNoteUuidRef.current = selectedNoteUuid; }, [selectedNoteUuid]);
     useEffect(() => { openNoteUuidsRef.current = openNoteUuids; }, [openNoteUuids]);
     useEffect(() => { allNotesRef.current = allNotes; }, [allNotes]);
     useEffect(() => { getVcsCommitsRef.current = getVcsCommits; }, [getVcsCommits]);
     useEffect(() => { addVcsCommitRef.current = addVcsCommit; }, [addVcsCommit]);
+
+    useEffect(() => {
+        if (selectedNoteUuid) {
+            const activeTabEl = document.getElementById(`tab-${selectedNoteUuid}`);
+            if (activeTabEl) {
+                activeTabEl.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'nearest'
+                });
+            }
+        }
+    }, [selectedNoteUuid]);
 
     // 3. Dynamic Auto-Versioning Hook (Runs on stable interval, restarts if backupInterval changes)
     useEffect(() => {
@@ -682,42 +1031,102 @@ export default function MainNotepadView({
         }
     }, [searchQuery, db, allNotes]);
 
-    const activeFolder = allFolders.find(f => f.uuid === activeFolderUuid);
-    const selectedNote = allNotes.find(n => n.uuid === selectedNoteUuid);
-    const mode = selectedNote ? getEditorModeFromTitle(selectedNote.title) : 'md';
-    const folderNotes = allNotes.filter(n => n.parentFolderUuid === activeFolderUuid);
+    // Create an O(1) lookup map of all notes by UUID
+    const notesMap = useMemo(() => {
+        const map = {};
+        allNotes.forEach(n => {
+            map[n.uuid] = n;
+        });
+        return map;
+    }, [allNotes]);
 
-    // Filter notes by search query (using pre-resolved database matches)
-    const filteredNotes = folderNotes.filter(n => {
-        const query = searchQuery.trim();
-        if (!query) return true;
-        return searchMatchedUuids ? searchMatchedUuids.includes(n.uuid) : false;
-    });
+    const activeFolder = allFolders.find(f => f.uuid === activeFolderUuid);
+    const selectedNote = notesMap[selectedNoteUuid];
+    const mode = selectedNote ? getEditorModeFromTitle(selectedNote.title) : 'md';
 
     const sortedNotes = useMemo(() => {
-        const list = [...filteredNotes];
+        const folderNotes = allNotes.filter(n => n.parentFolderUuid === activeFolderUuid);
+        const query = searchQuery.trim();
+        const filtered = folderNotes.filter(n => {
+            if (!query) return true;
+            return searchMatchedUuids ? searchMatchedUuids.includes(n.uuid) : false;
+        });
+
         if (sortBy === 'alpha-asc') {
-            return list.sort((a, b) => a.title.localeCompare(b.title));
+            return filtered.sort((a, b) => a.title.localeCompare(b.title));
         }
         if (sortBy === 'alpha-desc') {
-            return list.sort((a, b) => b.title.localeCompare(a.title));
+            return filtered.sort((a, b) => b.title.localeCompare(a.title));
         }
         if (sortBy === 'newest') {
-            return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+            return filtered.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
         }
         if (sortBy === 'oldest') {
-            return list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+            return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         }
         if (sortBy === 'priority') {
             const weights = { red: 5, pink: 5, yellow: 4, blue: 2, green: 1 };
-            return list.sort((a, b) => (weights[b.theme] || 0) - (weights[a.theme] || 0));
+            return filtered.sort((a, b) => (weights[b.theme] || 0) - (weights[a.theme] || 0));
         }
         if (sortBy === 'theme') {
-            return list.sort((a, b) => a.theme.localeCompare(b.theme));
+            return filtered.sort((a, b) => a.theme.localeCompare(b.theme));
         }
         // 'custom' order
-        return list.sort((a, b) => a.sortOrder - b.sortOrder);
-    }, [filteredNotes, sortBy]);
+        return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
+    }, [allNotes, activeFolderUuid, searchQuery, searchMatchedUuids, sortBy]);
+
+    // Pre-calculate notes count by folder for O(1) badge lookup
+    const notesCountByFolder = useMemo(() => {
+        const counts = {};
+        allNotes.forEach(n => {
+            counts[n.parentFolderUuid] = (counts[n.parentFolderUuid] || 0) + 1;
+        });
+        return counts;
+    }, [allNotes]);
+
+    // Group, filter and sort notes for each folder inside tree view list using useMemo
+    const sortedNotesByFolder = useMemo(() => {
+        const groups = {};
+        allNotes.forEach(n => {
+            if (!groups[n.parentFolderUuid]) {
+                groups[n.parentFolderUuid] = [];
+            }
+            groups[n.parentFolderUuid].push(n);
+        });
+
+        const result = {};
+        const query = searchQuery.trim();
+
+        Object.keys(groups).forEach(folderUuid => {
+            const folderNotes = groups[folderUuid];
+
+            // Apply search filtering
+            const filtered = folderNotes.filter(n => {
+                if (!query) return true;
+                return searchMatchedUuids ? searchMatchedUuids.includes(n.uuid) : false;
+            });
+
+            // Sort folder notes
+            filtered.sort((a, b) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+
+                if (sortBy === 'alpha-asc') return a.title.localeCompare(b.title);
+                if (sortBy === 'alpha-desc') return b.title.localeCompare(a.title);
+                if (sortBy === 'newest') return b.createdAt.localeCompare(a.createdAt);
+                if (sortBy === 'oldest') return a.createdAt.localeCompare(b.createdAt);
+                if (sortBy === 'priority' || sortBy === 'theme') {
+                    const weights = { red: 5, pink: 5, yellow: 4, blue: 2, green: 1 };
+                    return (weights[b.theme] || 0) - (weights[a.theme] || 0);
+                }
+                return a.sortOrder - b.sortOrder;
+            });
+
+            result[folderUuid] = filtered;
+        });
+
+        return result;
+    }, [allNotes, searchQuery, searchMatchedUuids, sortBy]);
 
     const handleMoveNoteUp = (idx, e) => {
         e.stopPropagation();
@@ -822,6 +1231,7 @@ export default function MainNotepadView({
 
                 const targetNote = allNotes.find(n => n.uuid === selectedNoteUuid);
                 if (targetNote && targetNote.localFilePath && editorPrefs.enableLocalFileAutoSync !== false && ipcRenderer) {
+                    lastWrittenContentsRef.current[selectedNoteUuid] = text;
                     ipcRenderer.invoke('write-local-file', targetNote.localFilePath, text);
                 }
             } catch (err) {
@@ -973,7 +1383,21 @@ export default function MainNotepadView({
         setDraggingOverFolderUuid(null);
 
         const files = Array.from(e.dataTransfer.files);
-        if (files.length === 0) return;
+        if (files.length === 0) {
+            // Drag-and-drop notes internally
+            const draggedNoteUuid = e.dataTransfer.getData('text/plain');
+            if (draggedNoteUuid) {
+                try {
+                    db.run("UPDATE sticky_notes SET parent_folder_uuid = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [folderUuid, draggedNoteUuid]);
+                    persistDatabaseToDisk(ipcRenderer, db);
+                    onTriggerRefresh();
+                    setActiveFolderUuid(folderUuid);
+                } catch (err) {
+                    console.error("Failed to move note internally:", err);
+                }
+            }
+            return;
+        }
 
         let lastImportedUuid = null;
         for (const file of files) {
@@ -1420,6 +1844,25 @@ export default function MainNotepadView({
                     <>
                         <div className="fixed inset-0 z-45 cursor-default" onClick={() => setEditorMenuOpen(false)} />
                         <div className="absolute right-0 top-full mt-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-xl py-1 w-44 z-50 animate-in fade-in slide-in-from-top-1.5 duration-150 select-none text-slate-700 dark:text-slate-200">
+                            {/* Context-aware Actions Header */}
+                            <div className="px-3 py-1.5 text-[8px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 border-b border-black/5 dark:border-white/5 mb-1">
+                                {getContextLabel(selectedNote.title)}
+                            </div>
+
+                            {/* Execute SQL Option */}
+                            {mode === 'sql' && (
+                                <button
+                                    onClick={() => {
+                                        handleExecuteSqlQuery();
+                                        setEditorMenuOpen(false);
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 cursor-pointer transition-colors"
+                                >
+                                    <FontAwesomeIcon icon={faPlay} className="text-indigo-500 w-3 text-center" />
+                                    Execute SQL Query
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => {
                                     setShowVcsPanel(!showVcsPanel);
@@ -1448,7 +1891,7 @@ export default function MainNotepadView({
                                 }}
                                 className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[10px] text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                             >
-                                <FontAwesomeIcon icon={faFlag} className={`${selectedNote.isFlagged ? 'text-red-505 animate-pulse' : 'text-slate-400'} w-3 text-center`} />
+                                <FontAwesomeIcon icon={faFlag} className={`${selectedNote.isFlagged ? 'text-red-500 animate-pulse' : 'text-slate-400'} w-3 text-center`} />
                                 {selectedNote.isFlagged ? 'Unflag Entry' : 'Flag Entry'}
                             </button>
                             <div className="border-t border-black/5 dark:border-white/5 my-1" />
@@ -1461,7 +1904,7 @@ export default function MainNotepadView({
                                 className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                             >
                                 <FontAwesomeIcon icon={faFileLines} className="text-slate-400 w-3 text-center" />
-                                Raw File (.txt/.md/...)
+                                Raw File Export
                             </button>
                             <button
                                 onClick={() => {
@@ -1473,16 +1916,21 @@ export default function MainNotepadView({
                                 <FontAwesomeIcon icon={faFileCode} className="text-slate-400 w-3 text-center" />
                                 JSON Backup
                             </button>
-                            <button
-                                onClick={() => {
-                                    handleExportNoteData(selectedNote.uuid, selectedNote.title, 'csv');
-                                    setEditorMenuOpen(false);
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
-                            >
-                                <FontAwesomeIcon icon={faFileCsv} className="text-slate-400 w-3 text-center" />
-                                CSV Spreadsheet
-                            </button>
+                            
+                            {/* Restrict CSV Export */}
+                            {['todo', 'list', 'log', 'xpnc'].includes(mode) && (
+                                <button
+                                    onClick={() => {
+                                        handleExportNoteData(selectedNote.uuid, selectedNote.title, 'csv');
+                                        setEditorMenuOpen(false);
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-white/5 text-[9px] text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                >
+                                    <FontAwesomeIcon icon={faFileCsv} className="text-slate-400 w-3 text-center" />
+                                    CSV Spreadsheet
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => {
                                     handleExportNoteData(selectedNote.uuid, selectedNote.title, 'db');
@@ -1499,7 +1947,7 @@ export default function MainNotepadView({
                                     setEditorMenuOpen(false);
                                     confirm(`Delete note "${selectedNote.title}"? This will delete all its checklist items permanently.`) && onDeleteNote(selectedNote.uuid);
                                 }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 text-[10px] text-rose-505 dark:text-rose-400 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                                className="w-full text-left px-3 py-1.5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-955/30 dark:hover:text-rose-400 text-[10px] text-rose-500 dark:text-rose-400 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                             >
                                 <FontAwesomeIcon icon={faTrashCan} className="text-rose-450 dark:text-rose-400 w-3 text-center" />
                                 Delete Note
@@ -1570,17 +2018,17 @@ export default function MainNotepadView({
                 
                 {/* UNIFIED SIDEBAR: File & Notebook Tree View */}
                 {sidebarCollapsed ? (
-                    <div className="w-12 border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col items-center py-3.5 justify-between select-none flex-shrink-0">
+                    <div className="w-12 border-r border-black/[0.06] dark:border-white/[0.06] bg-slate-100/35 dark:bg-slate-950/35 backdrop-blur-xl flex flex-col items-center py-4 justify-between select-none flex-shrink-0 shadow-sm transition-all duration-350">
                         <div className="flex flex-col items-center gap-4 w-full">
                             <button
                                 onClick={() => setSidebarCollapsed(false)}
-                                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-450 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                className="w-8 h-8 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all cursor-pointer"
                                 title="Expand Explorer Sidebar"
                             >
                                 <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
                             </button>
-                            <div className="w-full border-t border-black/5 dark:border-white/5" />
-                            <div className="flex flex-col items-center gap-1.5 w-full overflow-y-auto scrollbar-none px-1">
+                            <div className="w-8 border-t border-black/[0.06] dark:border-white/[0.06]" />
+                            <div className="flex flex-col items-center gap-2 w-full overflow-y-auto scrollbar-none px-1">
                                 {allFolders.map(f => {
                                     const isFolderExpanded = expandedFolders[f.uuid];
                                     return (
@@ -1592,13 +2040,17 @@ export default function MainNotepadView({
                                                 setActiveFolderUuid(f.uuid);
                                             }}
                                             title={f.name}
-                                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer relative group ${
                                                 activeFolderUuid === f.uuid
-                                                    ? 'bg-indigo-600 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-                                                    : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                                                    ? 'bg-indigo-600/10 text-indigo-600 dark:bg-white/10 dark:text-white shadow-xs border border-indigo-500/20 dark:border-white/15'
+                                                    : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
                                             }`}
                                         >
                                             <FontAwesomeIcon icon={isFolderExpanded ? faFolderOpen : faFolder} className="text-xs" />
+                                            {/* Tooltip */}
+                                            <div className="absolute left-12 scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100 bg-slate-900 text-white text-[9px] font-bold py-1 px-2 rounded-md shadow-lg pointer-events-none transition-all duration-150 z-50 whitespace-nowrap">
+                                                {f.name}
+                                            </div>
                                         </button>
                                     );
                                 })}
@@ -1608,132 +2060,123 @@ export default function MainNotepadView({
                 ) : (
                     <div 
                         style={{ width: `${sidebarWidth}px` }} 
-                        className="border-r border-black/5 dark:border-white/5 bg-slate-100/40 dark:bg-slate-955/20 flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0"
+                        className="border-r border-black/[0.06] dark:border-white/[0.06] bg-slate-100/35 dark:bg-slate-950/35 backdrop-blur-xl flex flex-col p-3.5 min-h-0 justify-between select-none flex-shrink-0 shadow-sm transition-all duration-350 text-xs"
                     >
                         <div className="flex flex-col min-h-0">
                             {/* Explorer Header */}
-                            <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-550 flex items-center gap-1.5">
-                                    <FontAwesomeIcon icon={faFolderOpen} className="text-slate-400 dark:text-slate-550 text-[10px]" />
-                                    Explorer
+                            <div className="flex items-center justify-between mb-3 px-0.5 flex-shrink-0 border-b border-black/[0.05] dark:border-white/[0.05] pb-2">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                    <FontAwesomeIcon icon={faFolderOpen} className="text-indigo-500 dark:text-indigo-400 text-[10px]" />
+                                    Workspace
                                 </span>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-0.5 bg-black/[0.03] dark:bg-white/[0.03] p-0.5 rounded-lg border border-black/[0.05] dark:border-white/[0.05]">
                                     <button
                                         onClick={handleExpandAllFolders}
-                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer animate-in fade-in duration-100"
+                                        className="w-5 h-5 flex items-center justify-center rounded text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all cursor-pointer"
                                         title="Expand All Folders"
                                     >
-                                        <FontAwesomeIcon icon={faFolderOpen} className="text-[9px]" />
+                                        <FontAwesomeIcon icon={faFolderOpen} className="text-[8px]" />
                                     </button>
                                     <button
                                         onClick={handleCollapseAllFolders}
-                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer animate-in fade-in duration-100"
+                                        className="w-5 h-5 flex items-center justify-center rounded text-slate-455 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all cursor-pointer"
                                         title="Collapse All Folders"
                                     >
-                                        <FontAwesomeIcon icon={faFolder} className="text-[9px]" />
+                                        <FontAwesomeIcon icon={faFolder} className="text-[8px]" />
                                     </button>
+                                    <div className="w-[1px] h-2.5 bg-black/10 dark:bg-white/10 mx-0.5" />
                                     <button
                                         onClick={handleOpenFileSelection}
-                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                        className="w-5 h-5 flex items-center justify-center rounded text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all cursor-pointer"
                                         title="Open File(s)"
                                     >
-                                        <FontAwesomeIcon icon={faFilePen} className="text-[9px]" />
+                                        <FontAwesomeIcon icon={faFilePen} className="text-[8px]" />
                                     </button>
                                     <button
                                         onClick={handleOpenWorkspaceFolder}
-                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                        className="w-5 h-5 flex items-center justify-center rounded text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all cursor-pointer"
                                         title="Open Folder"
                                     >
-                                        <FontAwesomeIcon icon={faFolderOpen} className="text-[9px]" />
+                                        <FontAwesomeIcon icon={faFolderOpen} className="text-[8px]" />
                                     </button>
                                     <button
                                         onClick={handleAutoCreateFolder}
-                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                        className="w-5 h-5 flex items-center justify-center rounded text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all cursor-pointer"
                                         title="New Notebook"
                                     >
-                                        <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+                                        <FontAwesomeIcon icon={faPlus} className="text-[8px]" />
                                     </button>
+                                    <div className="w-[1px] h-2.5 bg-black/10 dark:bg-white/10 mx-0.5" />
                                     <button
                                         onClick={() => setSidebarCollapsed(true)}
-                                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-455 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                        className="w-5 h-5 flex items-center justify-center rounded text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all cursor-pointer"
                                         title="Collapse Sidebar"
                                     >
-                                        <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
+                                        <FontAwesomeIcon icon={faChevronLeft} className="text-[8px]" />
                                     </button>
                                 </div>
                             </div>
 
                             {/* Search bar inside Sidebar */}
-                            <div className="relative mb-3 flex-shrink-0">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400 dark:text-slate-550">
-                                    <FontAwesomeIcon icon={faSearch} className="text-[10px]" />
+                            <div className="relative mb-2.5 flex-shrink-0">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400 dark:text-slate-500">
+                                    <FontAwesomeIcon icon={faSearch} className="text-[9px]" />
                                 </span>
                                 <input
                                     type="text"
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Search workspace files..."
-                                    className="w-full text-[10px] pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100 transition-colors"
+                                    className="w-full text-[10px] pl-7 pr-7 py-1.5 bg-white/70 dark:bg-slate-900/50 border border-black/10 dark:border-white/10 rounded-lg text-slate-800 dark:text-slate-100 placeholder:text-slate-400/80 transition-all focus:bg-white dark:focus:bg-slate-900 input-glow"
                                 />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer transition-colors"
+                                        title="Clear search"
+                                    >
+                                        <FontAwesomeIcon icon={faXmark} className="text-[8px]" />
+                                    </button>
+                                )}
                             </div>
 
                             {/* Workspace Sorting selector */}
-                            <div className="flex items-center justify-between mb-2.5 px-2 py-1 bg-white/40 dark:bg-slate-900/20 border border-black/5 dark:border-white/5 rounded-lg text-[9px] text-slate-500 font-medium select-none flex-shrink-0">
+                            <div className="flex items-center justify-between mb-2.5 px-2 py-1 bg-white/40 dark:bg-slate-900/30 border border-black/[0.05] dark:border-white/[0.05] rounded-lg text-[9px] text-slate-500 select-none flex-shrink-0">
                                 <div className="flex items-center gap-1.5">
-                                    <FontAwesomeIcon icon={faSort} className="text-slate-400 text-[10px]" />
-                                    <span className="font-bold uppercase tracking-wider text-[8px] text-slate-400">Sort Files</span>
+                                    <FontAwesomeIcon icon={faSort} className="text-indigo-400 dark:text-indigo-400 text-[9px]" />
+                                    <span className="font-bold uppercase tracking-widest text-[8px] text-slate-400 dark:text-slate-500">Sort Order</span>
                                 </div>
                                 <select
                                     value={sortBy}
                                     onChange={(e) => setSortBy(e.target.value)}
-                                    className="bg-transparent border-none text-slate-700 dark:text-slate-300 font-semibold focus:outline-none cursor-pointer text-[9px] py-0.5"
+                                    className="bg-transparent border-none text-slate-750 dark:text-slate-300 font-bold focus:outline-none cursor-pointer text-[9px] py-0.5 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
                                 >
-                                    <option value="custom">Custom Order</option>
-                                    <option value="alpha-asc">A - Z</option>
-                                    <option value="alpha-desc">Z - A</option>
-                                    <option value="newest">Newest</option>
-                                    <option value="oldest">Oldest</option>
-                                    <option value="priority">Priority</option>
-                                    <option value="theme">Theme Color</option>
+                                    <option value="custom" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">Custom Order</option>
+                                    <option value="alpha-asc" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">A - Z</option>
+                                    <option value="alpha-desc" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">Z - A</option>
+                                    <option value="newest" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">Newest</option>
+                                    <option value="oldest" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">Oldest</option>
+                                    <option value="priority" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">Priority</option>
+                                    <option value="theme" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">Color Theme</option>
                                 </select>
                             </div>
 
                             {/* Tree View list */}
-                            <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-none pr-0.5">
+                            <div className="flex-1 overflow-y-auto space-y-1 scrollbar-none pr-0.5">
                                 {allFolders.map(folder => {
                                     const isFolderExpanded = expandedFolders[folder.uuid] || searchQuery.trim().length > 0;
                                     const isFolderActive = folder.uuid === activeFolderUuid;
                                     
-                                    // Get notes inside this folder
-                                    const notesInThisFolder = allNotes.filter(n => n.parentFolderUuid === folder.uuid);
-                                    
-                                    // Apply search filtering
-                                    const filteredNotes = notesInThisFolder.filter(n => {
-                                        const query = searchQuery.trim();
-                                        if (!query) return true;
-                                        return searchMatchedUuids ? searchMatchedUuids.includes(n.uuid) : false;
-                                    });
-
-                                    // Sort notes based on sortBy setting
-                                    const sortedFolderNotes = [...filteredNotes].sort((a, b) => {
-                                        if (a.isPinned && !b.isPinned) return -1;
-                                        if (!a.isPinned && b.isPinned) return 1;
-
-                                        if (sortBy === 'alpha-asc') return a.title.localeCompare(b.title);
-                                        if (sortBy === 'alpha-desc') return b.title.localeCompare(a.title);
-                                        if (sortBy === 'newest') return b.createdAt.localeCompare(a.createdAt);
-                                        if (sortBy === 'oldest') return a.createdAt.localeCompare(b.createdAt);
-                                        if (sortBy === 'priority' || sortBy === 'theme') {
-                                            const weights = { red: 5, pink: 5, yellow: 4, blue: 2, green: 1 };
-                                            return (weights[b.theme] || 0) - (weights[a.theme] || 0);
-                                        }
-                                        return a.sortOrder - b.sortOrder;
-                                    });
+                                    // Get pre-sorted notes for this folder
+                                    const sortedFolderNotes = sortedNotesByFolder[folder.uuid] || [];
+                                    const totalNotesInFolderCount = notesCountByFolder[folder.uuid] || 0;
 
                                     // If search query is active and neither the folder matches nor has children, skip rendering
                                     if (searchQuery.trim().length > 0 && sortedFolderNotes.length === 0 && !folder.name.toLowerCase().includes(searchQuery.toLowerCase())) {
                                         return null;
                                     }
+
+                                    const isDraggingOver = draggingOverFolderUuid === folder.uuid;
 
                                     return (
                                         <div key={folder.uuid} className="flex flex-col">
@@ -1746,16 +2189,28 @@ export default function MainNotepadView({
                                                 onDragOver={(e) => handleDragOverFolder(e, folder.uuid)}
                                                 onDragLeave={handleDragLeaveFolder}
                                                 onDrop={(e) => handleDropFolder(e, folder.uuid)}
-                                                className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
-                                                    draggingOverFolderUuid === folder.uuid ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10' : ''
+                                                className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-all duration-200 explorer-item-hover ${
+                                                    isDraggingOver 
+                                                        ? 'drag-pulse ring-2 ring-indigo-500 border-indigo-500 shadow-md scale-[1.02]' 
+                                                        : ''
                                                 } ${
                                                     isFolderActive
-                                                        ? 'bg-slate-200/60 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-semibold'
-                                                        : 'text-slate-655 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 font-medium'
+                                                        ? 'bg-slate-200/50 dark:bg-white/[0.06] text-slate-800 dark:text-slate-100 border-l-2 border-indigo-500 dark:border-indigo-400 font-semibold shadow-xs'
+                                                        : 'text-slate-655 dark:text-slate-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] font-medium'
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-1.5 min-w-0">
-                                                    <FontAwesomeIcon icon={isFolderExpanded ? faFolderOpen : faFolder} className="text-xs opacity-75 text-indigo-555" />
+                                                    {/* Caret Chevron for premium folder expand indicators */}
+                                                    <FontAwesomeIcon 
+                                                        icon={faChevronRight} 
+                                                        className={`text-[7.5px] opacity-60 caret-transition mr-0.5 ${
+                                                            isFolderExpanded ? `rotate-90 ${folderColorClasses[folder.color || 'indigo']}` : 'text-slate-400 dark:text-slate-500'
+                                                        }`}
+                                                    />
+                                                    <FontAwesomeIcon 
+                                                        icon={isFolderExpanded ? faFolderOpen : faFolder} 
+                                                        className={`text-xs transition-colors duration-200 ${folderColorClasses[folder.color || 'indigo']}`} 
+                                                    />
                                                     {editingFolderUuid === folder.uuid ? (
                                                         <input
                                                             type="text"
@@ -1766,39 +2221,84 @@ export default function MainNotepadView({
                                                             maxLength={20}
                                                             autoFocus
                                                             onClick={e => e.stopPropagation()}
-                                                            className="w-full bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded px-1 text-[10px] focus:outline-none border border-black/10"
+                                                            className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded px-1.5 py-0.5 text-[10px] focus:outline-none border border-black/10 dark:border-white/10 input-glow"
                                                         />
                                                     ) : (
                                                         <div className="flex items-center gap-1.5 min-w-0">
                                                             <span className="truncate max-w-[100px] text-[11px]">{folder.name}</span>
-                                                            <span className="text-[8px] bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.2 rounded-full font-bold select-none leading-none flex items-center justify-center">
-                                                                {notesInThisFolder.length}
+                                                            <span className="text-[8px] bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded-full font-bold select-none leading-none flex items-center justify-center">
+                                                                {totalNotesInFolderCount}
                                                             </span>
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 {editingFolderUuid !== folder.uuid && (
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                    <div className={`flex items-center gap-0.5 ${activeFolderPaletteUuid === folder.uuid ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100'}`}>
                                                         {/* Add note directly in this folder */}
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleAutoCreateNote(folder.uuid);
                                                             }}
-                                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400"
-                                                            title="Add File here"
+                                                            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                                                            title="Add Note"
                                                         >
                                                             <FontAwesomeIcon icon={faPlus} className="text-[8px]" />
                                                         </button>
                                                         {/* Rename Folder */}
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); startFolderRename(folder); }}
-                                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400"
+                                                            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
                                                             title="Rename notebook"
                                                         >
                                                             <FontAwesomeIcon icon={faPen} className="text-[8px]" />
                                                         </button>
+
+                                                        {/* Folder Color Palette Button */}
+                                                        <div className="relative flex items-center">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveFolderPaletteUuid(activeFolderPaletteUuid === folder.uuid ? null : folder.uuid);
+                                                                }}
+                                                                className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 ${activeFolderPaletteUuid === folder.uuid ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'} cursor-pointer`}
+                                                                title="Change Folder Color"
+                                                            >
+                                                                <FontAwesomeIcon icon={faPalette} className="text-[8px]" />
+                                                            </button>
+                                                            {activeFolderPaletteUuid === folder.uuid && (
+                                                                <div className="absolute top-5 right-0 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                                    <div className="fixed inset-0" onClick={(e) => { e.stopPropagation(); setActiveFolderPaletteUuid(null); }} />
+                                                                    <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-black/10 dark:border-white/10 rounded-full p-1.5 flex gap-1.5 items-center z-50">
+                                                                        {['indigo', 'rose', 'amber', 'emerald', 'sky', 'violet'].map(color => {
+                                                                            const colorMap = {
+                                                                                indigo: 'bg-indigo-500 border-indigo-600',
+                                                                                rose: 'bg-rose-500 border-rose-600',
+                                                                                amber: 'bg-amber-500 border-amber-600',
+                                                                                emerald: 'bg-emerald-500 border-emerald-600',
+                                                                                sky: 'bg-sky-500 border-sky-600',
+                                                                                violet: 'bg-violet-500 border-violet-600'
+                                                                            };
+                                                                            return (
+                                                                                <button
+                                                                                    key={color}
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleUpdateFolderColor(folder.uuid, color);
+                                                                                        setActiveFolderPaletteUuid(null);
+                                                                                    }}
+                                                                                    className={`w-3.5 h-3.5 rounded-full border shadow-xs hover:scale-125 transition-transform cursor-pointer ${colorMap[color]}`}
+                                                                                    title={color.charAt(0).toUpperCase() + color.slice(1)}
+                                                                                />
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
                                                         {/* Delete Folder */}
                                                         {folder.uuid !== 'folder_1' && (
                                                             <button
@@ -1806,7 +2306,7 @@ export default function MainNotepadView({
                                                                     e.stopPropagation();
                                                                     confirm(`Wipe notebook "${folder.name}" and all notes inside it permanently?`) && onDeleteFolder(folder.uuid);
                                                                 }}
-                                                                className="p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500"
+                                                                className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-955/40 text-rose-505 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 cursor-pointer"
                                                                 title="Delete notebook"
                                                             >
                                                                 <FontAwesomeIcon icon={faTrashCan} className="text-[8px]" />
@@ -1818,17 +2318,23 @@ export default function MainNotepadView({
 
                                             {/* Nested Notes (if expanded) */}
                                             {isFolderExpanded && (
-                                                <div className="pl-3 flex flex-col gap-1 mt-1 border-l border-slate-200 dark:border-slate-800 ml-3.5 space-y-1">
+                                                <div className="pl-2.5 flex flex-col gap-0.5 mt-1 border-l border-black/[0.06] dark:border-white/[0.06] ml-3.5 space-y-0.5 transition-all duration-200">
                                                     {sortedFolderNotes.map((n, idx) => {
                                                         const isNoteSelected = n.uuid === selectedNoteUuid;
                                                         
                                                         // Priority flag dot background classes
                                                         const themeIndicatorClasses = {
-                                                            yellow: 'bg-amber-400 border-amber-500',
-                                                            pink: 'bg-rose-400 border-rose-500',
-                                                            red: 'bg-rose-500 border-rose-600',
+                                                            yellow: 'bg-amber-405 border-amber-500',
+                                                            pink: 'bg-rose-450 border-rose-500',
+                                                            red: 'bg-rose-505 border-rose-600',
                                                             blue: 'bg-sky-400 border-sky-500',
-                                                            green: 'bg-emerald-400 border-emerald-500'
+                                                            green: 'bg-emerald-400 border-emerald-500',
+                                                            indigo: 'bg-indigo-400 border-indigo-500',
+                                                            rose: 'bg-rose-400 border-rose-500',
+                                                            amber: 'bg-amber-400 border-amber-500',
+                                                            emerald: 'bg-emerald-400 border-emerald-500',
+                                                            sky: 'bg-sky-400 border-sky-500',
+                                                            violet: 'bg-violet-400 border-violet-500'
                                                         };
 
                                                         return (
@@ -1840,53 +2346,20 @@ export default function MainNotepadView({
                                                                     e.dataTransfer.effectAllowed = 'move';
                                                                 }}
                                                                 onClick={() => setSelectedNoteUuid(n.uuid)}
-                                                                className={`group/note flex items-center justify-between py-1 px-2 rounded-md cursor-pointer transition-all border ${
-                                                                    isNoteSelected
-                                                                        ? 'bg-white dark:bg-slate-800/80 border-black/10 dark:border-white/10 shadow-xs shadow-black/5'
-                                                                        : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5'
-                                                                }`}
+                                                                className={`group/note flex items-center justify-between py-1 px-2 rounded-md cursor-pointer transition-all border explorer-item-hover ${getNoteClasses(n, isNoteSelected)}`}
                                                             >
                                                                 <div className="flex items-center gap-1.5 min-w-0">
-                                                                    {/* Color theme priority dot menu */}
-                                                                    <div className="relative flex-shrink-0 flex items-center">
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); setActiveThemeMenu(activeThemeMenu === n.uuid ? null : n.uuid); }}
-                                                                            className={`w-1.5 h-1.5 rounded-full border shadow-xs hover:scale-125 transition-transform ${
-                                                                                themeIndicatorClasses[n.theme] || 'bg-slate-300'
-                                                                            }`}
-                                                                            title={`Theme: ${n.theme}`}
+                                                                    {openNoteUuids.includes(n.uuid) && (
+                                                                        <FontAwesomeIcon
+                                                                            icon={faEye}
+                                                                            className="text-indigo-500 dark:text-indigo-400 text-[8.5px] flex-shrink-0"
+                                                                            title="Currently open"
                                                                         />
-                                                                        {activeThemeMenu === n.uuid && (
-                                                                            <div className="absolute top-4 left-0 z-50">
-                                                                                <div className="fixed inset-0" onClick={(e) => { e.stopPropagation(); setActiveThemeMenu(null); }} />
-                                                                                <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-black/10 dark:border-white/10 rounded-lg py-1 px-1 flex flex-col gap-0.5 w-[100px] text-slate-700 dark:text-slate-200">
-                                                                                    {Object.entries(priorityFlags).filter(([k]) => k !== 'pink').map(([k, meta]) => (
-                                                                                        <button
-                                                                                            key={k}
-                                                                                            type="button"
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                onChangeNoteTheme(n.uuid, k === 'red' ? 'pink' : k);
-                                                                                                setActiveThemeMenu(null);
-                                                                                            }}
-                                                                                            className="flex items-center gap-1.5 w-full text-[8px] font-semibold hover:bg-black/5 dark:hover:bg-white/5 px-1.5 py-0.5 rounded transition-colors text-left"
-                                                                                        >
-                                                                                            <FontAwesomeIcon icon={faFlag} className={meta.flagColor} />
-                                                                                            <span>{meta.label.split(' ')[0]}</span>
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
+                                                                    )}
 
                                                                     <FontAwesomeIcon
                                                                         icon={getFileIcon(n.title)}
-                                                                        className={`text-[9px] flex-shrink-0 opacity-85 ${
-                                                                            isNoteSelected
-                                                                                ? 'text-indigo-600 dark:text-indigo-400'
-                                                                                : 'text-slate-400 dark:text-slate-500'
-                                                                        }`}
+                                                                        className={`text-[9px] flex-shrink-0 opacity-85 ${getFileIconColorClass(n.title, isNoteSelected)}`}
                                                                     />
 
                                                                     {n.isPinned && (
@@ -1907,7 +2380,7 @@ export default function MainNotepadView({
                                                                             maxLength={25}
                                                                             autoFocus
                                                                             onClick={e => e.stopPropagation()}
-                                                                            className="w-[120px] bg-white border border-slate-350 rounded px-1 text-[10px] focus:outline-none"
+                                                                            className="w-[120px] bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded px-1.5 py-0.5 text-[10px] focus:outline-none border border-black/10 dark:border-white/10 input-glow"
                                                                         />
                                                                     ) : (
                                                                         <span 
@@ -1923,14 +2396,14 @@ export default function MainNotepadView({
 
                                                                 {/* Hover Action Buttons */}
                                                                 {editingNoteUuid !== n.uuid && (
-                                                                    <div className="opacity-0 group-hover/note:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                                    <div className={`flex items-center gap-0.5 ${activeNotePaletteUuid === n.uuid ? 'opacity-100' : 'opacity-0 group-hover/note:opacity-100 transition-all duration-150 transform scale-90 group-hover/note:scale-100'}`}>
                                                                         {/* Swap custom orders */}
                                                                         {sortBy === 'custom' && (
                                                                             <>
                                                                                 <button
                                                                                     onClick={(e) => handleMoveNoteUp(idx, e)}
                                                                                     disabled={idx === 0}
-                                                                                    className={`p-0.5 rounded ${idx === 0 ? 'opacity-30 pointer-events-none' : 'text-slate-400 hover:text-slate-655'}`}
+                                                                                    className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ${idx === 0 ? 'opacity-30 pointer-events-none' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                                                                                     title="Move Up"
                                                                                 >
                                                                                     <FontAwesomeIcon icon={faArrowUp} className="text-[7px]" />
@@ -1938,7 +2411,7 @@ export default function MainNotepadView({
                                                                                 <button
                                                                                     onClick={(e) => handleMoveNoteDown(idx, e)}
                                                                                     disabled={idx === sortedFolderNotes.length - 1}
-                                                                                    className={`p-0.5 rounded ${idx === sortedFolderNotes.length - 1 ? 'opacity-30 pointer-events-none' : 'text-slate-400 hover:text-slate-655'}`}
+                                                                                    className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ${idx === sortedFolderNotes.length - 1 ? 'opacity-30 pointer-events-none' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                                                                                     title="Move Down"
                                                                                 >
                                                                                     <FontAwesomeIcon icon={faArrowDown} className="text-[7px]" />
@@ -1948,15 +2421,60 @@ export default function MainNotepadView({
                                                                         {/* Pin Note */}
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onToggleNotePin(n.uuid, n.isPinned); }}
-                                                                            className={`p-0.5 rounded hover:bg-black/10 ${n.isPinned ? 'text-amber-500 hover:text-amber-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                                                            className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ${n.isPinned ? 'text-amber-500 hover:text-amber-600' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                                                                             title={n.isPinned ? "Unpin note" : "Pin note to top"}
                                                                         >
                                                                             <FontAwesomeIcon icon={faThumbtack} className="text-[7px]" />
                                                                         </button>
+
+                                                                        {/* Note Color Palette Button */}
+                                                                        <div className="relative flex items-center">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setActiveNotePaletteUuid(activeNotePaletteUuid === n.uuid ? null : n.uuid);
+                                                                                }}
+                                                                                className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ${activeNotePaletteUuid === n.uuid ? 'text-indigo-550 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'} cursor-pointer`}
+                                                                                title="Change Note Color"
+                                                                            >
+                                                                                <FontAwesomeIcon icon={faPalette} className="text-[7px]" />
+                                                                            </button>
+                                                                            {activeNotePaletteUuid === n.uuid && (
+                                                                                <div className="absolute top-5 right-0 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                                                    <div className="fixed inset-0" onClick={(e) => { e.stopPropagation(); setActiveNotePaletteUuid(null); }} />
+                                                                                    <div className="relative bg-white dark:bg-slate-900 shadow-xl border border-black/10 dark:border-white/10 rounded-full p-1.5 flex gap-1.5 items-center z-50">
+                                                                                        {['indigo', 'rose', 'amber', 'emerald', 'sky', 'violet'].map(color => {
+                                                                                            const colorMap = {
+                                                                                                indigo: 'bg-indigo-500 border-indigo-600',
+                                                                                                rose: 'bg-rose-500 border-rose-600',
+                                                                                                amber: 'bg-amber-500 border-amber-600',
+                                                                                                emerald: 'bg-emerald-500 border-emerald-600',
+                                                                                                sky: 'bg-sky-500 border-sky-600',
+                                                                                                violet: 'bg-violet-500 border-violet-600'
+                                                                                            };
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={color}
+                                                                                                    type="button"
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        onChangeNoteTheme(n.uuid, color);
+                                                                                                        setActiveNotePaletteUuid(null);
+                                                                                                    }}
+                                                                                                    className={`w-3.5 h-3.5 rounded-full border shadow-xs hover:scale-125 transition-transform cursor-pointer ${colorMap[color]}`}
+                                                                                                    title={color.charAt(0).toUpperCase() + color.slice(1)}
+                                                                                                />
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
                                                                         {/* Rename */}
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); startNoteRename(n); }}
-                                                                            className="p-0.5 rounded hover:bg-black/10 text-slate-400 hover:text-slate-600"
+                                                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                                                                             title="Rename file"
                                                                         >
                                                                             <FontAwesomeIcon icon={faPen} className="text-[7px]" />
@@ -1967,7 +2485,7 @@ export default function MainNotepadView({
                                                                                 e.stopPropagation();
                                                                                 confirm(`Delete note "${n.title}"?`) && onDeleteNote(n.uuid);
                                                                             }}
-                                                                            className="p-0.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-500"
+                                                                            className="p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-955/30 text-slate-400 hover:text-rose-500 dark:hover:text-rose-450 cursor-pointer"
                                                                             title="Delete file"
                                                                         >
                                                                             <FontAwesomeIcon icon={faTrashCan} className="text-[7px]" />
@@ -1978,7 +2496,7 @@ export default function MainNotepadView({
                                                         );
                                                     })}
                                                     {sortedFolderNotes.length === 0 && (
-                                                        <span className="text-[9px] text-slate-400 dark:text-slate-500 italic pl-2 py-0.5">Empty notebook</span>
+                                                        <span className="text-[9px] text-slate-400 dark:text-slate-500 italic pl-3.5 py-0.5">Empty notebook</span>
                                                     )}
                                                 </div>
                                             )}
@@ -1989,12 +2507,18 @@ export default function MainNotepadView({
                         </div>
 
                         {/* Sidebar Footer Controls */}
-                        <div className="pt-2 border-t border-black/5 dark:border-white/5 flex-shrink-0 flex flex-col gap-2">
+                        <div className="pt-2.5 border-t border-black/[0.06] dark:border-white/[0.06] flex-shrink-0 flex items-center gap-2">
                             <button
                                 onClick={() => handleAutoCreateNote()}
-                                className="w-full py-1.5 border border-dashed border-black/15 dark:border-white/10 hover:border-slate-800 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg text-[9px] font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1 transition-all"
+                                className="flex-1 py-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-center gap-1 animate-in fade-in duration-200"
                             >
-                                <FontAwesomeIcon icon={faPlus} /> Note
+                                <FontAwesomeIcon icon={faPlus} className="text-[8px]" /> Note
+                            </button>
+                            <button
+                                onClick={handleAutoCreateFolder}
+                                className="flex-1 py-1.5 bg-black/[0.04] dark:bg-white/[0.04] hover:bg-black/[0.08] dark:hover:bg-white/[0.08] text-slate-655 dark:text-slate-350 border border-black/10 dark:border-white/10 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 animate-in fade-in duration-200"
+                            >
+                                <FontAwesomeIcon icon={faFolder} className="text-[8px]" /> Notebook
                             </button>
                         </div>
                     </div>
@@ -2010,53 +2534,188 @@ export default function MainNotepadView({
                 )}
 
                 {/* COLUMN 3: Note Editor Workspace */}
-                <div className={`flex-1 flex flex-col p-1.5 overflow-hidden min-h-0 select-text transition-all duration-350 ${selectedNote ? editorBodyBgClasses[selectedNote.theme] || 'bg-slate-100/30' : 'bg-slate-100/30'}`}>
+                <div className={`flex-1 flex flex-col p-1 overflow-hidden min-h-0 select-text transition-all duration-350 ${selectedNote ? editorBodyBgClasses[selectedNote.theme] || 'bg-slate-100/30' : 'bg-slate-100/30'}`}>
                     
                     {/* Horizontal Tab Bar */}
                     {openNoteUuids.length > 0 && (
-                        <div className={`flex items-center overflow-x-auto scrollbar-none border-b ${isDarkMode ? 'border-white/5 bg-slate-900/40' : 'border-black/5 bg-slate-100/50'} pb-0.5 px-0.5 mb-1 gap-0.5 flex-nowrap select-none flex-shrink-0`}>
-                            {openNoteUuids.map(uuid => {
-                                const tabNote = allNotes.find(n => n.uuid === uuid);
-                                if (!tabNote) return null;
-                                const isActive = uuid === selectedNoteUuid;
-                                
-                                const themeDotColors = {
-                                    yellow: 'bg-amber-400',
-                                    pink: 'bg-rose-455',
-                                    red: 'bg-rose-500',
-                                    blue: 'bg-sky-400',
-                                    green: 'bg-emerald-400'
-                                };
-                                
-                                return (
-                                    <div
-                                        key={uuid}
-                                        onClick={() => setSelectedNoteUuid(uuid)}
-                                        className={`group flex items-center gap-1 px-2.5 py-1 rounded-t-md border border-b-0 cursor-pointer transition-all duration-200 text-[9px] font-extrabold flex-shrink-0 ${
-                                            isActive
-                                                ? isDarkMode
-                                                    ? 'bg-slate-800/90 border-white/10 text-white shadow-xs'
-                                                    : 'bg-white border-black/10 text-slate-800 shadow-xs'
-                                                : isDarkMode
-                                                    ? 'bg-transparent border-transparent text-slate-450 hover:text-slate-200'
-                                                    : 'bg-transparent border-transparent text-slate-500 hover:text-slate-850'
-                                        }`}
-                                        style={isActive ? { borderTopColor: tabNote.theme === 'yellow' ? '#f59e0b' : tabNote.theme === 'pink' || tabNote.theme === 'red' ? '#e11d48' : tabNote.theme === 'blue' ? '#0284c7' : '#059669', borderTopWidth: '2px' } : {}}
-                                    >
-                                        <span className={`w-1.5 h-1.5 rounded-full ${themeDotColors[tabNote.theme] || 'bg-slate-450'}`} />
-                                        <span className="truncate max-w-[85px]">{tabNote.title}</span>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleCloseTab(uuid, e);
-                                            }}
-                                            className="p-0.5 rounded-full text-slate-400 hover:bg-black/15 dark:hover:bg-white/15 hover:text-rose-550 transition-colors opacity-60 group-hover:opacity-100"
+                        <div className={`relative flex items-center border-b ${isDarkMode ? 'border-white/5 bg-slate-900/40' : 'border-black/5 bg-slate-100/50'} pb-0 mb-0.5 select-none flex-shrink-0`}>
+                            {/* Scrollable Tabs Wrapper */}
+                            <div 
+                                onWheel={handleTabBarWheel}
+                                className="flex-1 flex items-center overflow-x-auto scrollbar-none pb-0 px-0.5 gap-0.5 flex-nowrap min-w-0"
+                            >
+                                {openNoteUuids.map(uuid => {
+                                    const tabNote = notesMap[uuid];
+                                    if (!tabNote) return null;
+                                    const isActive = uuid === selectedNoteUuid;
+                                    
+                                    const themeDotColors = {
+                                        yellow: 'bg-amber-400 border border-amber-500/20',
+                                        amber: 'bg-amber-400 border border-amber-500/20',
+                                        pink: 'bg-rose-455 border border-rose-500/20',
+                                        red: 'bg-rose-505 border border-rose-600/20',
+                                        rose: 'bg-rose-500 border border-rose-600/20',
+                                        blue: 'bg-sky-400 border border-sky-500/20',
+                                        sky: 'bg-sky-400 border border-sky-500/20',
+                                        green: 'bg-emerald-400 border border-emerald-500/20',
+                                        emerald: 'bg-emerald-400 border border-emerald-500/20',
+                                        indigo: 'bg-indigo-400 border border-indigo-500/20',
+                                        violet: 'bg-violet-400 border border-violet-500/20'
+                                    };
+
+                                    const borderColors = {
+                                        yellow: '#f59e0b',
+                                        amber: '#d97706',
+                                        pink: '#e11d48',
+                                        red: '#dc2626',
+                                        rose: '#e11d48',
+                                        blue: '#0284c7',
+                                        sky: '#0284c7',
+                                        green: '#059669',
+                                        emerald: '#059669',
+                                        indigo: '#4f46e5',
+                                        violet: '#7c3aed'
+                                    };
+                                    
+                                    return (
+                                        <div
+                                            key={uuid}
+                                            id={`tab-${uuid}`}
+                                            onClick={() => setSelectedNoteUuid(uuid)}
+                                            className={`group flex items-center gap-1 px-2 py-0.5 rounded-t-md border border-b-0 cursor-pointer transition-all duration-200 text-[9px] font-extrabold flex-shrink-0 ${getTabClasses(tabNote, isActive)}`}
+                                            style={isActive ? { borderTopColor: borderColors[tabNote.theme] || '#f59e0b', borderTopWidth: '2px' } : {}}
                                         >
-                                            <FontAwesomeIcon icon={faXmark} className="text-[6px]" />
-                                        </button>
-                                    </div>
-                                );
-                            })}
+                                            <span className="truncate max-w-[85px]">{tabNote.title}</span>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCloseTab(uuid, e);
+                                                }}
+                                                className="p-0.5 rounded-full text-slate-400 hover:bg-black/15 dark:hover:bg-white/15 hover:text-rose-550 transition-colors opacity-60 group-hover:opacity-100"
+                                            >
+                                                <FontAwesomeIcon icon={faXmark} className="text-[6px]" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Dropdown for All Open Tabs */}
+                            {openNoteUuids.length > 1 && (
+                                <div className="relative flex-shrink-0 px-1 border-l border-black/5 dark:border-white/5">
+                                    <button
+                                        onClick={() => {
+                                            setIsOpenTabsMenuOpen(prev => {
+                                                if (prev) setTabSearchQuery('');
+                                                return !prev;
+                                            });
+                                        }}
+                                        className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+                                        title="View All Open Tabs"
+                                    >
+                                        <FontAwesomeIcon icon={faChevronDown} className="text-[8px]" />
+                                    </button>
+                                    
+                                    {isOpenTabsMenuOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => { setIsOpenTabsMenuOpen(false); setTabSearchQuery(''); }} />
+                                            <div className="absolute right-1 top-full mt-1 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-xl shadow-xl py-1 w-48 max-h-60 overflow-y-auto scrollbar-none z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                                                <div className="px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-black/5 dark:border-white/5 mb-1 flex items-center justify-between">
+                                                    <span>Open Tabs ({openNoteUuids.length})</span>
+                                                </div>
+                                                <div className="px-2 py-1 border-b border-black/5 dark:border-white/5 sticky top-0 bg-white dark:bg-slate-900 z-10">
+                                                    <div className="relative flex items-center">
+                                                        <FontAwesomeIcon icon={faSearch} className="absolute left-2 text-[8px] text-slate-400" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search tabs..."
+                                                            value={tabSearchQuery}
+                                                            onChange={(e) => setTabSearchQuery(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-full pl-6 pr-4 py-0.5 text-[9px] bg-slate-100 dark:bg-slate-800 border border-black/5 dark:border-white/5 rounded-sm focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                                                        />
+                                                        {tabSearchQuery && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setTabSearchQuery('');
+                                                                }}
+                                                                className="absolute right-1 text-slate-400 hover:text-slate-655"
+                                                            >
+                                                                <FontAwesomeIcon icon={faXmark} className="text-[7.5px]" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {(() => {
+                                                    const filtered = openNoteUuids.filter(uuid => {
+                                                        const tabNote = notesMap[uuid];
+                                                        if (!tabNote) return false;
+                                                        return tabNote.title.toLowerCase().includes(tabSearchQuery.toLowerCase());
+                                                    });
+                                                    if (filtered.length === 0) {
+                                                        return (
+                                                            <div className="px-2.5 py-2.5 text-[9px] text-slate-400 italic text-center">
+                                                                No matches found
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return filtered.map(uuid => {
+                                                        const tabNote = notesMap[uuid];
+                                                        if (!tabNote) return null;
+                                                        const isActive = uuid === selectedNoteUuid;
+                                                        const themeIndicatorClasses = {
+                                                            yellow: 'bg-amber-405 border-amber-500',
+                                                            pink: 'bg-rose-450 border-rose-500',
+                                                            red: 'bg-rose-505 border-rose-600',
+                                                            blue: 'bg-sky-400 border-sky-500',
+                                                            green: 'bg-emerald-400 border-emerald-500',
+                                                            indigo: 'bg-indigo-400 border-indigo-500',
+                                                            rose: 'bg-rose-400 border-rose-500',
+                                                            amber: 'bg-amber-400 border-amber-500',
+                                                            emerald: 'bg-emerald-400 border-emerald-500',
+                                                            sky: 'bg-sky-400 border-sky-500',
+                                                            violet: 'bg-violet-400 border-violet-500'
+                                                        };
+                                                        return (
+                                                            <button
+                                                                key={uuid}
+                                                                onClick={() => {
+                                                                    setSelectedNoteUuid(uuid);
+                                                                    setIsOpenTabsMenuOpen(false);
+                                                                    setTabSearchQuery('');
+                                                                }}
+                                                                className={`w-full text-left px-2.5 py-1 text-[10px] flex items-center justify-between gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${
+                                                                    isActive ? 'font-semibold text-indigo-650 dark:text-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/20' : 'text-slate-655 dark:text-slate-350'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center gap-1.5 truncate">
+                                                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${themeIndicatorClasses[tabNote.theme] || 'bg-slate-300'}`} />
+                                                                    <span className="truncate">{tabNote.title}</span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCloseTab(uuid, e);
+                                                                        if (isActive && openNoteUuids.length === 1) {
+                                                                            setIsOpenTabsMenuOpen(false);
+                                                                            setTabSearchQuery('');
+                                                                        }
+                                                                    }}
+                                                                    className="p-0.5 rounded text-slate-400 hover:text-rose-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                                                >
+                                                                    <FontAwesomeIcon icon={faXmark} className="text-[7px]" />
+                                                                </button>
+                                                            </button>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -2105,8 +2764,8 @@ export default function MainNotepadView({
                                 {(() => {
                                     if (mode === 'todo' || mode === 'list') {
                                         return (
-                                            <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-2.5 rounded-xl border border-black/10 dark:border-white/10 mb-1 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
-                                                <div className="flex justify-between items-center mb-1.5 select-none">
+                                            <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-1 pt-0.5 rounded-xl border border-black/10 dark:border-white/10 mb-0.5 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
+                                                <div className="flex justify-between items-center mb-1 select-none">
                                                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-555">
                                                         {mode === 'todo' ? 'Tasks Checklist (.todo)' : 'Simple Checklist (.list)'}
                                                     </span>
@@ -2134,8 +2793,8 @@ export default function MainNotepadView({
                                     
                                     if (mode === 'log') {
                                         return (
-                                            <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-2.5 rounded-xl border border-black/10 dark:border-white/10 mb-1 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
-                                                <div className="flex justify-between items-center mb-1.5 select-none">
+                                            <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-1 pt-0.5 rounded-xl border border-black/10 dark:border-white/10 mb-0.5 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
+                                                <div className="flex justify-between items-center mb-1 select-none">
                                                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-555">
                                                         Events Log (.log)
                                                     </span>
@@ -2152,8 +2811,8 @@ export default function MainNotepadView({
                                     
                                     if (mode === 'xpnc') {
                                         return (
-                                            <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-2.5 rounded-xl border border-black/10 dark:border-white/10 mb-1 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
-                                                <div className="flex justify-between items-center mb-1.5 select-none">
+                                            <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-1 pt-0.5 rounded-xl border border-black/10 dark:border-white/10 mb-0.5 select-text no-drag text-left overflow-hidden animate-in fade-in duration-100 shadow-lg">
+                                                <div className="flex justify-between items-center mb-1 select-none">
                                                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-555">
                                                         Expenses Tracker (.xpnc)
                                                     </span>
@@ -2233,6 +2892,7 @@ export default function MainNotepadView({
                     // Preferences
                     editorPrefs={editorPrefs}
                     onUpdateEditorPrefs={onUpdateEditorPrefs}
+                    ipcRenderer={ipcRenderer}
                 />
 
                 {/* Expanded Detailed Help Modal Overlay */}
@@ -2249,6 +2909,127 @@ export default function MainNotepadView({
                     db={db}
                     isDarkMode={isDarkMode}
                 />
+
+            {/* SQL Results Modal */}
+            {sqlModalOpen && (
+                <div className="fixed inset-0 bg-slate-955/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200 select-text">
+                    <div className="bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 dark:border-white/5 bg-slate-50 dark:bg-slate-950/20">
+                            <div className="flex items-center gap-2 animate-in slide-in-from-left duration-200">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 dark:bg-indigo-400/10 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shadow-inner">
+                                    <FontAwesomeIcon icon={faDatabase} className="text-sm" />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">SQL Execution Results</h3>
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Preview query outputs and affected metadata</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSqlModalOpen(false)}
+                                className="w-7 h-7 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center justify-center cursor-pointer"
+                                title="Close modal"
+                            >
+                                <FontAwesomeIcon icon={faXmark} className="text-xs" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="flex-1 p-5 overflow-y-auto min-h-0 space-y-4">
+                            {sqlResult?.error ? (
+                                <div className="p-4 bg-rose-50/50 dark:bg-rose-955/10 border border-rose-100 dark:border-rose-950 rounded-xl flex items-start gap-3 text-left">
+                                    <div className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold mt-0.5 flex-shrink-0">!</div>
+                                    <div className="space-y-1">
+                                        <h4 className="text-[11px] font-bold text-rose-700 dark:text-rose-455">Execution Error</h4>
+                                        <p className="text-[10px] text-rose-600 dark:text-rose-400 font-mono break-all">{sqlResult.error}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Success Header / Metadata */}
+                                    <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 font-medium bg-slate-50 dark:bg-slate-850/30 border border-black/5 dark:border-white/5 rounded-xl px-4 py-2.5 text-left">
+                                        <span className="flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                            Status: <strong className="text-slate-700 dark:text-slate-200">Success</strong>
+                                        </span>
+                                        <span className="w-[1px] h-3 bg-black/10 dark:bg-white/10 hidden sm:inline" />
+                                        <span>
+                                            Rows Affected: <strong className="text-slate-700 dark:text-slate-200">{sqlResult?.rowsAffected || 0}</strong>
+                                        </span>
+                                        <span className="w-[1px] h-3 bg-black/10 dark:bg-white/10 hidden sm:inline" />
+                                        <span>
+                                            Rows Returned: <strong className="text-slate-700 dark:text-slate-200">{sqlResult?.rows?.length || 0}</strong>
+                                        </span>
+                                    </div>
+
+                                    {/* Tabular Output */}
+                                    {sqlResult?.columns?.length > 0 ? (
+                                        <div className="border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+                                            <div className="overflow-x-auto max-h-[45vh]">
+                                                <table className="w-full text-left text-[11px] border-collapse">
+                                                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900 border-b border-black/10 dark:border-white/10 select-none">
+                                                        <tr>
+                                                            {sqlResult.columns.map((col, idx) => (
+                                                                <th
+                                                                    key={idx}
+                                                                    className="px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-black/[0.05] dark:border-white/[0.05] last:border-r-0"
+                                                                >
+                                                                    {col}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+                                                        {sqlResult.rows.map((row, rowIdx) => (
+                                                            <tr
+                                                                key={rowIdx}
+                                                                className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                                                            >
+                                                                {row.map((val, colIdx) => (
+                                                                    <td
+                                                                        key={colIdx}
+                                                                        className="px-4 py-2 font-mono text-[10.5px] text-slate-700 dark:text-slate-300 border-r border-black/[0.05] dark:border-white/[0.05] last:border-r-0 whitespace-nowrap"
+                                                                    >
+                                                                        {val === null ? (
+                                                                            <span className="text-slate-400 dark:text-slate-600 italic">NULL</span>
+                                                                        ) : typeof val === 'object' ? (
+                                                                            JSON.stringify(val)
+                                                                        ) : (
+                                                                            String(val)
+                                                                        )}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center p-12 text-center bg-slate-50 dark:bg-slate-950/20 border border-dashed border-black/10 dark:border-white/10 rounded-2xl select-none">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-lg mb-3 shadow-inner">✓</div>
+                                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Query Executed Successfully</p>
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-400 max-w-sm mt-1 leading-relaxed">
+                                                The script did not return any tabular result sets (e.g., INSERT, UPDATE, DELETE, or ALTER statement).
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-5 py-3 border-t border-black/5 dark:border-white/5 bg-slate-50 dark:bg-slate-955/20 flex justify-end flex-shrink-0 select-none">
+                            <button
+                                onClick={() => setSqlModalOpen(false)}
+                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shadow-sm transition-colors cursor-pointer"
+                            >
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
                 <input
                     type="file"

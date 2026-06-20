@@ -12,6 +12,7 @@
 - ⚙️ **Code Auto-Formatters**: Built-in formatters for JSON, Java, React, XML/HTML, CSS, YAML, Properties, and Postgres SQL (keywords uppercase + alignment).
 - 🔄 **VCS Auto-Versioning**: A background worker that automatically takes version snapshots of modified open tabs every 10 minutes to prevent data loss.
 - 💾 **Native SQLite Storage**: Secure local data persistence in SQLite powered by WebAssembly SQL.js, optimized for zero latency and complete privacy.
+- 🛡️ **Diagnostics & Log Terminal**: Real-time stats for database, log files, and browser cache. Easily perform diagnostics checks, clear caches, and review filterable, color-coded system log streams in Settings.
 - 🌍 **Internationalization**: Full UTF-8 encoding support to write in any language (English, Sanskrit, Hindi, Japanese, Arabic, Emoji).
 - 📦 **Standalone Packaging**: Ready to compile into independent installers (.exe, .dmg, .AppImage) via builder scripts.
 
@@ -57,8 +58,10 @@ All compiled installers will be written to `frontend/dist/`.
 For deeper technical insight, consult our documentation folder:
 - [Architecture Overview](docs/architecture-overview.md)
 - [Database Schema](docs/database-schema.md)
-- [Development Setup](docs/development-setup.md)
-- [Platform Specifications](docs/features-platforms.md)
+- [Technical Specification](docs/technical-specification.md)
+- [Feature Catalog](docs/feature-catalog.md)
+- [Development Phases](docs/development-phases.md)
+- [Changelog](docs/changelog.md)
 
 ---
 

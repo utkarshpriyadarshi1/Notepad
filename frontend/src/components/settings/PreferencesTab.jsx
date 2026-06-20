@@ -167,7 +167,7 @@ export default function PreferencesTab({
                 </div>
                 
                 {/* Default File & Folder Names Configuration */}
-                <div className="pt-3 border-t border-black/5 dark:border-white/5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="pt-3 border-t border-black/5 dark:border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-550 dark:text-slate-455">
                             Default New Note Name
@@ -191,6 +191,25 @@ export default function PreferencesTab({
                             placeholder="e.g. Notebook"
                             className="w-full px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-250 font-medium rounded-lg border border-black/5 dark:border-white/10 text-xs focus:outline-none transition-colors"
                         />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-550 dark:text-slate-455">
+                            Default File Type
+                        </label>
+                        <select
+                            value={editorPrefs.defaultFileType || 'md'}
+                            onChange={(e) => onUpdateEditorPrefs({ defaultFileType: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-250 font-medium rounded-lg border border-black/5 dark:border-white/10 text-xs focus:outline-none transition-colors cursor-pointer"
+                        >
+                            <option value="md">Markdown (.md)</option>
+                            <option value="txt">Plain Text (.txt)</option>
+                            <option value="sql">SQL (.sql)</option>
+                            <option value="js">JavaScript (.js)</option>
+                            <option value="jsx">React (.jsx)</option>
+                            <option value="json">JSON (.json)</option>
+                            <option value="html">HTML (.html)</option>
+                            <option value="css">CSS (.css)</option>
+                        </select>
                     </div>
                 </div>
             </div>
