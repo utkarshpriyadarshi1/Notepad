@@ -21,11 +21,12 @@
 ## 📂 Project Directory Structure
 
 ```text
-├── builder/             # Dev runners, certificates, setup, build, and packaging scripts
-├── backend/             # Electron main process (window lifecycle, IPC handlers, background logs)
-├── frontend/            # React + Vite renderer source (UI tabs, explorer tree, editor, hooks)
-├── docs/                # Architecture plans, database schemas, and guides
-└── app.config.json      # Central metadata configuration for app name, versions, icons, and themes
+├── builder/             # Onboarding setup, local dev server, and production build/package scripts
+├── backend/             # Electron main process (lifecycle events, tray menu, OS filesystem IPC handlers)
+├── frontend/            # React + Vite client application codebase (components, styles, hooks)
+├── docs/                # Technical specs, architecture docs, schemas, and historical changelogs
+│   └── schema/          # Offline database schemas (schema.sql, data.sql) for developer reference
+└── app.config.json      # Central configuration for app name, versions, icons, and theme colors
 ```
 
 ---
@@ -62,6 +63,15 @@ For deeper technical insight, consult our documentation folder:
 - [Feature Catalog](docs/feature-catalog.md)
 - [Development Phases](docs/development-phases.md)
 - [Changelog](docs/changelog.md)
+
+---
+
+## 🤝 Contributing & Community
+
+We welcome contributions of all types! To get started:
+- Review the [Contributing Guidelines](CONTRIBUTING.md) for environment setup and workflow standards.
+- Read our [Code of Conduct](CODE_OF_CONDUCT.md) to understand community expectations.
+- Consult the [Security Policy](SECURITY.md) to report potential vulnerabilities.
 
 ---
 
