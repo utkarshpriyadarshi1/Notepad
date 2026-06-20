@@ -228,14 +228,167 @@ const highlightCode = (code, lang) => {
     return result;
 };
 
-export default function GenericEditorWorkspace({ text, onUpdate, language, isCompact = false }) {
+function decodeBase64Utf8(str) {
+    try {
+        const binString = atob(str.trim().replace(/\s/g, ''));
+        const bytes = Uint8Array.from(binString, c => c.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+    } catch (e) {
+        throw new Error("Invalid Base64 payload or non-UTF8 binary data.");
+    }
+}
+
+const renderBase64Preview = (rawText) => {
+    if (!rawText || !rawText.trim()) {
+        return (
+            <div className="text-[10px] font-bold text-slate-400 p-4 select-none">
+                Empty Base64 note. Start typing to preview data.
+            </div>
+        );
+    }
+    
+    const cleanB64 = rawText.trim().replace(/\s/g, '');
+    
+    // Check if it's already a Data URI image
+    if (cleanB64.startsWith('data:image/')) {
+        return (
+            <div className="flex flex-col items-center justify-center p-4 bg-slate-950 rounded-xl border border-white/5 shadow-inner">
+                <img src={cleanB64} alt="Base64 Rendered Preview" className="max-h-[300px] object-contain rounded-lg shadow-md" />
+                <span className="text-[8px] font-extrabold text-slate-500 uppercase mt-2">Data URI Image Payload</span>
+            </div>
+        );
+    }
+    
+    // Check common raw Base64 image prefixes
+    const pngPrefix = 'ivborw0kggo';
+    const jpegPrefix = '/9j/';
+    const gifPrefix = 'r0lgod';
+    const webpPrefix = 'uklgr';
+    const svgPrefix = 'phn2zy';
+    
+    const lowerB64 = cleanB64.toLowerCase();
+    let imgUri = null;
+    let imgType = '';
+    
+    if (lowerB64.startsWith(pngPrefix)) {
+        imgUri = `data:image/png;base64,${cleanB64}`;
+        imgType = 'PNG IMAGE';
+    } else if (lowerB64.startsWith(jpegPrefix)) {
+        imgUri = `data:image/jpeg;base64,${cleanB64}`;
+        imgType = 'JPEG IMAGE';
+    } else if (lowerB64.startsWith(gifPrefix)) {
+        imgUri = `data:image/gif;base64,${cleanB64}`;
+        imgType = 'GIF IMAGE';
+    } else if (lowerB64.startsWith(webpPrefix)) {
+        imgUri = `data:image/webp;base64,${cleanB64}`;
+        imgType = 'WEBP IMAGE';
+    } else if (lowerB64.startsWith(svgPrefix)) {
+        imgUri = `data:image/svg+xml;base64,${cleanB64}`;
+        imgType = 'SVG IMAGE';
+    }
+    
+    if (imgUri) {
+        return (
+            <div className="flex flex-col items-center justify-center p-4 bg-slate-950 rounded-xl border border-white/5 shadow-inner">
+                <img src={imgUri} alt="Base64 Rendered Preview" className="max-h-[300px] object-contain rounded-lg shadow-md" />
+                <span className="text-[8px] font-extrabold text-slate-500 uppercase mt-2">Raw Base64: {imgType}</span>
+            </div>
+        );
+    }
+    
+    // Attempt decoding as plain text UTF-8
+    try {
+        const decoded = decodeBase64Utf8(cleanB64);
+        return (
+            <div className="flex flex-col text-left">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-[8px] font-extrabold uppercase tracking-widest text-emerald-500 rounded-lg mb-2 inline-self-start select-none">
+                    Decoded UTF-8 Text Plaintext
+                </div>
+                <pre className="font-mono text-[10px] leading-relaxed bg-slate-950 text-slate-200 p-4 rounded-xl overflow-auto text-left shadow-inner border border-white/5 select-text">
+                    {decoded}
+                </pre>
+            </div>
+        );
+    } catch (e) {
+        return (
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl font-mono text-[9px] text-left">
+                <div className="font-bold uppercase tracking-wider text-[8px] mb-1">Base64 Decode Error:</div>
+                <div>The file payload is not valid Base64 or contains non-UTF8 binary data.</div>
+            </div>
+        );
+    }
+};
+
+// Caret coordinates calculator helper
+function getCaretCoordinates(element, position) {
+    const properties = [
+        'direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+        'borderWidth', 'borderStyle', 'borderColor',
+        'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize', 'fontSizeAdjust', 'lineHeight', 'fontFamily',
+        'textAlign', 'textTransform', 'textIndent', 'textDecoration',
+        'letterSpacing', 'wordSpacing', 'tabSize', 'MozTabSize'
+    ];
+
+    const isBrowser = typeof window !== 'undefined';
+    if (!isBrowser) return { top: 0, left: 0, height: 0 };
+
+    const div = document.createElement('div');
+    div.id = 'input-textarea-caret-position-mirror-div';
+    document.body.appendChild(div);
+
+    const style = div.style;
+    const computed = window.getComputedStyle(element);
+
+    style.whiteSpace = 'pre-wrap';
+    style.wordWrap = 'break-word';
+    style.position = 'absolute';
+    style.visibility = 'hidden';
+
+    properties.forEach(prop => {
+        style[prop] = computed[prop];
+    });
+
+    style.width = element.clientWidth + 'px';
+    style.height = element.clientHeight + 'px';
+
+    div.textContent = element.value.substring(0, position);
+
+    const span = document.createElement('span');
+    span.textContent = element.value.substring(position) || '.';
+    div.appendChild(span);
+
+    const rect = span.getBoundingClientRect();
+    const elemRect = element.getBoundingClientRect();
+    
+    const top = span.offsetTop - element.scrollTop;
+    const left = span.offsetLeft - element.scrollLeft;
+    const height = parseFloat(computed.lineHeight) || rect.height;
+
+    document.body.removeChild(div);
+
+    return { top, left, height };
+}
+
+export default function GenericEditorWorkspace({ text, onUpdate, language, isCompact = false, editorPrefs, actionsMenu }) {
     const [activeTab, setActiveTab] = useState('write');
     const [showSearch, setShowSearch] = useState(false);
     const [findText, setFindText] = useState('');
     const [replaceText, setReplaceText] = useState('');
+    const [useRegex, setUseRegex] = useState(false);
+    const [caseSensitive, setCaseSensitive] = useState(false);
+    const [wholeWord, setWholeWord] = useState(false);
+    const [cursors, setCursors] = useState([]);
+    const [visualCursors, setVisualCursors] = useState([]);
     const [searchStatus, setSearchStatus] = useState('');
     const [splitRatio, setSplitRatio] = useState(50);
     const [fontSize, setFontSize] = useState(12);
+
+    useEffect(() => {
+        if (editorPrefs?.fontSize) {
+            setFontSize(editorPrefs.fontSize);
+        }
+    }, [editorPrefs?.fontSize]);
     const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
     const [syntaxStatus, setSyntaxStatus] = useState({ valid: true, message: '' });
     const [banner, setBanner] = useState(null);
@@ -243,6 +396,7 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
     const textareaRef = useRef(null);
     const gutterRef = useRef(null);
     const statusTimeoutRef = useRef(null);
+    const lastSelectionStartRef = useRef(0);
 
     const isMarkdown = (language || '').toLowerCase() === 'md';
 
@@ -250,6 +404,15 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
     const handleScroll = () => {
         if (textareaRef.current && gutterRef.current) {
             gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+        }
+
+        const textarea = textareaRef.current;
+        if (textarea && cursors.length > 0) {
+            const coords = cursors.map(pos => {
+                const coord = getCaretCoordinates(textarea, pos);
+                return { pos, ...coord };
+            });
+            setVisualCursors(coords);
         }
     };
 
@@ -262,10 +425,42 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         const textarea = e.target;
         const val = textarea.value;
         const start = textarea.selectionStart;
+        lastSelectionStartRef.current = start;
         const textBeforeCursor = val.substring(0, start);
         const lineCount = textBeforeCursor.split('\n').length;
         const colCount = textBeforeCursor.split('\n').pop().length + 1;
         setCursorPos({ line: lineCount, col: colCount });
+    };
+
+    // Handle mouse up for Alt + Click multi-cursor placement
+    const handleTextareaMouseUp = (e) => {
+        const textarea = e.target;
+        if (!textarea) return;
+        const newPos = textarea.selectionStart;
+
+        if (editorPrefs?.enableMultiCursor && e.altKey) {
+            e.preventDefault();
+            setCursors(prev => {
+                let base = [...prev];
+                if (base.length === 0) {
+                    const oldPos = lastSelectionStartRef.current;
+                    if (oldPos !== newPos) {
+                        base = [oldPos];
+                    }
+                }
+                if (base.includes(newPos)) {
+                    // Toggle cursor removal if clicked again
+                    return base.filter(pos => pos !== newPos);
+                }
+                return [...base, newPos].sort((a, b) => a - b);
+            });
+        } else {
+            // Normal click without Alt clears multi-cursors
+            setCursors([]);
+        }
+
+        lastSelectionStartRef.current = newPos;
+        handleCursorMovement(e);
     };
 
     // Auto-clear banner timer
@@ -552,6 +747,8 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         }
         
         // Brackets / Layout indentation format
+        const spacesCount = editorPrefs?.tabSize || 4;
+        const indentString = ' '.repeat(spacesCount);
         const lines = result.split('\n');
         let indent = 0;
         return lines.map(line => {
@@ -559,7 +756,7 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
             if (trimmed.startsWith(')') || trimmed.startsWith('}')) {
                 indent = Math.max(0, indent - 1);
             }
-            const space = '  '.repeat(indent);
+            const space = indentString.repeat(indent);
             const processed = space + trimmed;
             if (trimmed.endsWith('(') || trimmed.endsWith('{')) {
                 indent++;
@@ -618,12 +815,14 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
             } else if (['js', 'jsx', 'ts', 'tsx', 'java', 'css', 'html', 'xml'].includes(l)) {
                 const lines = text.split('\n');
                 let indent = 0;
+                const spacesCount = editorPrefs?.tabSize || 4;
+                const indentString = ' '.repeat(spacesCount);
                 const formatted = lines.map(line => {
                     const trimmed = line.trim();
                     if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith('</') || trimmed.startsWith(')')) {
                         indent = Math.max(0, indent - 1);
                     }
-                    const space = '  '.repeat(indent);
+                    const space = indentString.repeat(indent);
                     const processed = space + trimmed;
                     if (trimmed.endsWith('{') || trimmed.endsWith('[') || trimmed.endsWith('(') || (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.includes('</'))) {
                         indent++;
@@ -640,6 +839,53 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         }
     };
 
+    const handleEncodeBase64 = () => {
+        if (!text || !text.trim()) {
+            setBanner({ type: 'error', message: 'No content to encode.' });
+            return;
+        }
+        try {
+            const bytes = new TextEncoder().encode(text);
+            const binString = String.fromCodePoint(...bytes);
+            const encoded = btoa(binString);
+            onUpdate(encoded);
+            setBanner({ type: 'success', message: 'Text successfully encoded to Base64!' });
+        } catch (err) {
+            setBanner({ type: 'error', message: `Encoding failed: ${err.message}` });
+        }
+    };
+
+    const handleDecodeBase64 = () => {
+        if (!text || !text.trim()) {
+            setBanner({ type: 'error', message: 'No content to decode.' });
+            return;
+        }
+        try {
+            const clean = text.trim().replace(/\s/g, '');
+            const decoded = decodeBase64Utf8(clean);
+            onUpdate(decoded);
+            setBanner({ type: 'success', message: 'Base64 successfully decoded to plaintext!' });
+        } catch (err) {
+            setBanner({ type: 'error', message: `Decoding failed: ${err.message}` });
+        }
+    };
+
+    const getFindRegex = (searchText, regexMode, caseMode, wholeWordMode) => {
+        try {
+            let pattern = searchText;
+            if (!regexMode) {
+                pattern = searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            if (wholeWordMode) {
+                pattern = `\\b${pattern}\\b`;
+            }
+            const flags = caseMode ? 'g' : 'gi';
+            return new RegExp(pattern, flags);
+        } catch (err) {
+            return null;
+        }
+    };
+
     // Find and Replace functions
     const findNext = () => {
         const textarea = textareaRef.current;
@@ -649,24 +895,42 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         }
         const currentText = text || '';
         const start = textarea.selectionEnd;
-        let index = currentText.toLowerCase().indexOf(findText.toLowerCase(), start);
 
-        if (index === -1) {
-            index = currentText.toLowerCase().indexOf(findText.toLowerCase(), 0);
-            if (index !== -1) {
-                showStatus('Wrapped to top');
-            } else {
-                showStatus('No matches found');
-                return;
+        const regex = getFindRegex(findText, useRegex, caseSensitive, wholeWord);
+        if (!regex) {
+            showStatus('Invalid Regex');
+            return;
+        }
+
+        let match;
+        const matches = [];
+        regex.lastIndex = 0;
+        
+        while ((match = regex.exec(currentText)) !== null) {
+            matches.push({
+                index: match.index,
+                length: match[0].length
+            });
+            if (match[0].length === 0) {
+                regex.lastIndex++;
             }
+        }
+
+        if (matches.length === 0) {
+            showStatus('No matches found');
+            return;
+        }
+
+        let nextMatch = matches.find(m => m.index >= start);
+        if (!nextMatch) {
+            nextMatch = matches[0];
+            showStatus('Wrapped to top');
         } else {
             showStatus('Found match');
         }
 
-        if (index !== -1) {
-            textarea.focus();
-            textarea.setSelectionRange(index, index + findText.length);
-        }
+        textarea.focus();
+        textarea.setSelectionRange(nextMatch.index, nextMatch.index + nextMatch.length);
     };
 
     const replaceCurrent = () => {
@@ -677,7 +941,22 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         const end = textarea.selectionEnd;
         const selected = currentText.substring(start, end);
 
-        if (selected.toLowerCase() === findText.toLowerCase()) {
+        const regex = getFindRegex(findText, useRegex, caseSensitive, wholeWord);
+        if (!regex) return;
+
+        let doesMatch = false;
+        if (useRegex) {
+            const m = selected.match(regex);
+            doesMatch = m && m[0] === selected;
+        } else {
+            if (caseSensitive) {
+                doesMatch = selected === findText;
+            } else {
+                doesMatch = selected.toLowerCase() === findText.toLowerCase();
+            }
+        }
+
+        if (doesMatch) {
             onUpdate(currentText.substring(0, start) + replaceText + currentText.substring(end));
             showStatus('Replaced');
             setTimeout(() => {
@@ -694,8 +973,12 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         const textarea = textareaRef.current;
         if (!textarea || !findText) return;
         const currentText = text || '';
-        const escapedFind = findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedFind, 'gi');
+        const regex = getFindRegex(findText, useRegex, caseSensitive, wholeWord);
+        if (!regex) {
+            showStatus('Invalid Regex');
+            return;
+        }
+
         const matches = currentText.match(regex);
         const count = matches ? matches.length : 0;
 
@@ -707,8 +990,230 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         }
     };
 
-    // Keyboard hotkeys
+    const getIndexAboveOrBelow = (val, currentIndex, direction) => {
+        const lines = val.split('\n');
+        let cumulative = 0;
+        let currentLineIndex = -1;
+        let currentColIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const lineLen = lines[i].length;
+            if (currentIndex >= cumulative && currentIndex <= cumulative + lineLen + 1) {
+                currentLineIndex = i;
+                currentColIndex = currentIndex - cumulative;
+                break;
+            }
+            cumulative += lineLen + 1;
+        }
+
+        if (currentLineIndex === -1) return -1;
+
+        const targetLineIndex = currentLineIndex + direction;
+        if (targetLineIndex < 0 || targetLineIndex >= lines.length) return -1;
+
+        let targetCumulative = 0;
+        for (let i = 0; i < targetLineIndex; i++) {
+            targetCumulative += lines[i].length + 1;
+        }
+
+        const targetLineLen = lines[targetLineIndex].length;
+        const targetColIndex = Math.min(currentColIndex, targetLineLen);
+        return targetCumulative + targetColIndex;
+    };
+
+    // Recalculate visual cursors when cursors/text/fontSize changes
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (!textarea || cursors.length === 0) {
+            setVisualCursors([]);
+            return;
+        }
+
+        const updateVisualCursors = () => {
+            const coords = cursors.map(pos => {
+                const coord = getCaretCoordinates(textarea, pos);
+                return { pos, ...coord };
+            });
+            setVisualCursors(coords);
+        };
+
+        updateVisualCursors();
+    }, [cursors, text, fontSize, showSearch, activeTab]);
+
     const handleKeyDown = (e) => {
+        // Multi-cursor Arrow Up/Down overrides
+        if (editorPrefs?.enableMultiCursor && e.ctrlKey && e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+            const val = textarea.value;
+            const refCursor = cursors.length > 0 ? cursors[cursors.length - 1] : textarea.selectionStart;
+            const dir = e.key === 'ArrowUp' ? -1 : 1;
+            const targetIndex = getIndexAboveOrBelow(val, refCursor, dir);
+            if (targetIndex !== -1) {
+                setCursors(prev => {
+                    const base = prev.length > 0 ? prev : [textarea.selectionStart];
+                    if (base.includes(targetIndex)) return base;
+                    return [...base, targetIndex].sort((a, b) => a - b);
+                });
+            }
+            return;
+        }
+
+        // Multi-cursor input handling
+        if (editorPrefs?.enableMultiCursor && cursors.length > 0) {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+            const val = textarea.value;
+            let nextText = val;
+            let offset = 0;
+            const nextCursors = [];
+            const sortedCursors = [...cursors].sort((a, b) => a - b);
+
+            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    const actualPos = pos + offset;
+                    nextText = nextText.substring(0, actualPos) + e.key + nextText.substring(actualPos);
+                    offset += 1;
+                    nextCursors.push(pos + offset);
+                });
+                onUpdate(nextText);
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'Backspace') {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    const actualPos = pos + offset;
+                    if (actualPos > 0) {
+                        nextText = nextText.substring(0, actualPos - 1) + nextText.substring(actualPos);
+                        offset -= 1;
+                        nextCursors.push(pos + offset);
+                    } else {
+                        nextCursors.push(pos + offset);
+                    }
+                });
+                onUpdate(nextText);
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'Delete') {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    const actualPos = pos + offset;
+                    if (actualPos < nextText.length) {
+                        nextText = nextText.substring(0, actualPos) + nextText.substring(actualPos + 1);
+                        offset -= 1;
+                        nextCursors.push(pos + offset);
+                    } else {
+                        nextCursors.push(pos + offset);
+                    }
+                });
+                onUpdate(nextText);
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    nextCursors.push(Math.max(0, pos - 1));
+                });
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    nextCursors.push(Math.min(val.length, pos + 1));
+                });
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'ArrowUp' && !e.altKey && !e.ctrlKey) {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    const targetIndex = getIndexAboveOrBelow(val, pos, -1);
+                    nextCursors.push(targetIndex !== -1 ? targetIndex : pos);
+                });
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'ArrowDown' && !e.altKey && !e.ctrlKey) {
+                e.preventDefault();
+                sortedCursors.forEach(pos => {
+                    const targetIndex = getIndexAboveOrBelow(val, pos, 1);
+                    nextCursors.push(targetIndex !== -1 ? targetIndex : pos);
+                });
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'Tab') {
+                e.preventDefault();
+                const tabSize = editorPrefs?.tabSize || 4;
+                const spaces = ' '.repeat(tabSize);
+                sortedCursors.forEach(pos => {
+                    const actualPos = pos + offset;
+                    nextText = nextText.substring(0, actualPos) + spaces + nextText.substring(actualPos);
+                    offset += tabSize;
+                    nextCursors.push(pos + offset);
+                });
+                onUpdate(nextText);
+                setCursors(nextCursors);
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = nextCursors[nextCursors.length - 1];
+                }, 0);
+                return;
+            }
+            else if (e.key === 'Escape') {
+                e.preventDefault();
+                setCursors([]);
+                return;
+            }
+        }
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const val = textarea.value;
+            const tabSize = editorPrefs?.tabSize || 4;
+            const spaces = ' '.repeat(tabSize);
+            
+            const newValue = val.substring(0, start) + spaces + val.substring(end);
+            onUpdate(newValue);
+            
+            // Put cursor after the inserted spaces
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(start + tabSize, start + tabSize);
+            }, 0);
+            return;
+        }
+
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
             const key = e.key.toLowerCase();
             if (key === 'b' && isMarkdown) {
@@ -727,11 +1232,26 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
         }
     };
 
+    const activeTheme = editorPrefs?.theme || 'standard';
+    let themeClass = '';
+    if (activeTheme === 'monokai') {
+        themeClass = 'editor-theme-monokai';
+    } else if (activeTheme === 'dracula') {
+        themeClass = 'editor-theme-dracula';
+    } else if (activeTheme === 'github-dark') {
+        themeClass = 'editor-theme-github-dark';
+    } else {
+        themeClass = 'editor-theme-standard bg-white/30 dark:bg-slate-900/30 backdrop-blur-md';
+    }
+
+    const wrapLines = editorPrefs?.lineWrap !== false;
+    const wrapClass = (isMarkdown || wrapLines) ? 'whitespace-pre-wrap overflow-x-hidden' : 'whitespace-pre overflow-x-auto';
+
     return (
-        <div className="flex-1 flex flex-col min-h-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden shadow-lg select-text no-drag p-2">
+        <div className={`flex-1 flex flex-col min-h-0 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-lg select-text no-drag p-1 transition-all ${themeClass}`}>
             
             {/* Redesigned Generic Toolbar */}
-            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-2 mb-2 select-none flex-wrap gap-2">
+            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-1 mb-1.5 select-none flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {/* View Modes */}
                     <div className="flex bg-black/5 dark:bg-white/5 p-0.5 rounded-lg border border-black/5 dark:border-white/5">
@@ -809,6 +1329,27 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                         </button>
                     )}
 
+                    {activeTab !== 'preview' && language === 'b64' && (
+                        <div className="flex bg-black/5 dark:bg-white/5 p-0.5 rounded-lg border border-black/5 dark:border-white/5 gap-1 select-none">
+                            <button
+                                type="button"
+                                onClick={handleEncodeBase64}
+                                title="Encode UTF-8 plaintext to Base64"
+                                className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-black/10 dark:border-white/10 rounded px-2 py-1 text-[8px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors shadow-xs"
+                            >
+                                Encode Plaintext
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDecodeBase64}
+                                title="Decode Base64 payload to UTF-8 plaintext"
+                                className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-black/10 dark:border-white/10 rounded px-2 py-1 text-[8px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors shadow-xs"
+                            >
+                                Decode Plaintext
+                            </button>
+                        </div>
+                    )}
+
                     {/* Find and Replace Panel Toggle */}
                     <button
                         type="button"
@@ -820,6 +1361,12 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                     >
                         <FontAwesomeIcon icon={faSearch} />
                     </button>
+                    {actionsMenu && (
+                        <>
+                            <div className="w-[1px] h-4 bg-black/10 dark:bg-white/10 mx-1" />
+                            {actionsMenu}
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -835,17 +1382,45 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
 
             {/* Find and Replace Panel */}
             {showSearch && (
-                <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-100/50 dark:bg-slate-950/40 rounded-xl border border-black/5 dark:border-white/5 mb-2 animate-in slide-in-from-top-2 duration-150 select-none">
-                    <div className="flex items-center gap-1.5 flex-1 min-w-[150px]">
+                <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-100/50 dark:bg-slate-950/40 rounded-xl border border-black/5 dark:border-white/5 mb-1.5 animate-in slide-in-from-top-2 duration-150 select-none">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
                         <span className="text-[8px] font-extrabold text-slate-450 select-none uppercase tracking-wider">Find:</span>
-                        <input
-                            type="text"
-                            value={findText}
-                            onChange={(e) => setFindText(e.target.value)}
-                            placeholder="Find..."
-                            className="flex-1 px-2 py-1 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg text-xs focus:outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
-                            onKeyDown={e => e.key === 'Enter' && findNext()}
-                        />
+                        <div className="relative flex-1 flex items-center">
+                            <input
+                                type="text"
+                                value={findText}
+                                onChange={(e) => setFindText(e.target.value)}
+                                placeholder="Find..."
+                                className="w-full pl-2 pr-16 py-1 bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-lg text-xs focus:outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+                                onKeyDown={e => e.key === 'Enter' && findNext()}
+                            />
+                            <div className="absolute right-1 flex items-center gap-0.5 select-none">
+                                <button
+                                    type="button"
+                                    onClick={() => setCaseSensitive(!caseSensitive)}
+                                    className={`w-[17px] h-[17px] text-[8px] rounded-md flex items-center justify-center font-mono font-extrabold cursor-pointer border border-transparent transition-all ${caseSensitive ? 'bg-indigo-500 text-white' : 'hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 dark:text-slate-500'}`}
+                                    title="Match Case (Aa)"
+                                >
+                                    Aa
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setWholeWord(!wholeWord)}
+                                    className={`w-[17px] h-[17px] text-[8px] rounded-md flex items-center justify-center font-mono font-extrabold cursor-pointer border border-transparent transition-all ${wholeWord ? 'bg-indigo-500 text-white' : 'hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 dark:text-slate-500'}`}
+                                    title="Match Whole Word (\b)"
+                                >
+                                    \b
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUseRegex(!useRegex)}
+                                    className={`w-[17px] h-[17px] text-[8px] rounded-md flex items-center justify-center font-mono font-extrabold cursor-pointer border border-transparent transition-all ${useRegex ? 'bg-indigo-500 text-white' : 'hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 dark:text-slate-500'}`}
+                                    title="Use Regular Expression (.*)"
+                                >
+                                    .*
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-1 min-w-[150px]">
                         <span className="text-[8px] font-extrabold text-slate-455 select-none uppercase tracking-wider">Replace:</span>
@@ -871,12 +1446,12 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
             {/* Workspace Editor Area */}
             <div className="flex-1 flex min-h-0 overflow-hidden relative">
                 {activeTab === 'write' && (
-                    <div className="flex-1 flex min-h-0 overflow-hidden">
+                    <div className="flex-1 flex min-h-0 overflow-hidden relative">
                         {/* Gutter / Line Numbers */}
                         <div 
                             ref={gutterRef}
                             style={{ fontSize: `${fontSize}px` }}
-                            className="w-9 bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-500 text-right pr-2 py-3 select-none overflow-y-hidden border-r border-black/5 dark:border-white/5 font-mono leading-relaxed flex flex-col transition-all"
+                            className="w-9 bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-550 text-right pr-1.5 py-1 select-none overflow-y-hidden border-r border-black/5 dark:border-white/5 font-mono leading-relaxed flex flex-col transition-all editor-gutter"
                         >
                             {lineNumbers.map(n => <span key={n}>{n}</span>)}
                         </div>
@@ -887,16 +1462,26 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                             onChange={(e) => onUpdate(e.target.value)}
                             onScroll={handleScroll}
                             onKeyUp={handleCursorMovement}
-                            onMouseUp={handleCursorMovement}
+                            onMouseUp={handleTextareaMouseUp}
                             onFocus={handleCursorMovement}
                             onKeyDown={handleKeyDown}
                             style={{ fontSize: `${fontSize}px` }}
                             placeholder={`Type note contents or ${language || 'code'} tags here...`}
-                            className={`flex-1 h-full bg-transparent text-slate-800 dark:text-slate-100 px-3 py-3 font-mono leading-relaxed focus:outline-none resize-none overflow-y-auto text-left transition-all ${
-                                isMarkdown ? 'whitespace-pre-wrap overflow-x-hidden' : 'whitespace-pre overflow-x-auto'
-                            }`}
+                            className={`flex-1 h-full bg-transparent text-slate-800 dark:text-slate-100 px-2 py-1 font-mono leading-normal focus:outline-none resize-none overflow-y-auto text-left transition-all ${wrapClass}`}
                             spellCheck={isMarkdown}
                         />
+                        {editorPrefs?.enableMultiCursor && visualCursors.map((c, index) => (
+                            <div 
+                                key={index}
+                                className="absolute bg-indigo-500 w-[1.5px] pointer-events-none animate-caret"
+                                style={{
+                                    left: `${c.left + 36}px`, // line number gutter offset
+                                    top: `${c.top}px`,
+                                    height: `${c.height}px`,
+                                    zIndex: 10
+                                }}
+                            />
+                        ))}
                     </div>
                 )}
 
@@ -906,6 +1491,8 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                             <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed" dangerouslySetInnerHTML={{ __html: compiledHtml }} />
                         ) : language === 'html' ? (
                             <iframe srcDoc={text} title="HTML Sandbox Render Preview" className="w-full h-full border-none bg-white rounded-xl shadow-sm min-h-[250px]" sandbox="allow-scripts" />
+                        ) : language === 'b64' ? (
+                            renderBase64Preview(text)
                         ) : (
                             <pre className="font-mono text-[10px] leading-relaxed bg-slate-950 text-slate-200 p-4 rounded-xl overflow-auto text-left shadow-inner border border-white/5" dangerouslySetInnerHTML={{ __html: highlightedCodeHtml }} />
                         )}
@@ -916,8 +1503,8 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                     <div className={`w-full flex-1 flex min-h-0 overflow-hidden ${isCompact ? 'flex-col gap-2' : 'flex-row'}`}>
                         {/* Editor Split */}
                         <div style={isCompact ? { height: '50%' } : { width: `${splitRatio}%` }} className={`flex min-h-0 min-w-0 border-black/5 dark:border-white/5 ${isCompact ? 'border-b pb-2' : 'pr-2 border-r'}`}>
-                            <div className="flex-1 flex min-h-0 overflow-hidden">
-                                <div ref={gutterRef} style={{ fontSize: `${fontSize}px` }} className="w-9 bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-500 text-right pr-2 py-3 select-none overflow-y-hidden border-r border-black/5 dark:border-white/5 font-mono leading-relaxed flex flex-col transition-all">
+                            <div className="flex-1 flex min-h-0 overflow-hidden relative">
+                                <div ref={gutterRef} style={{ fontSize: `${fontSize}px` }} className="w-9 bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-550 text-right pr-1.5 py-1 select-none overflow-y-hidden border-r border-black/5 dark:border-white/5 font-mono leading-relaxed flex flex-col transition-all editor-gutter">
                                     {lineNumbers.map(n => <span key={n}>{n}</span>)}
                                 </div>
                                 <textarea
@@ -926,16 +1513,26 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                                     onChange={(e) => onUpdate(e.target.value)}
                                     onScroll={handleScroll}
                                     onKeyUp={handleCursorMovement}
-                                    onMouseUp={handleCursorMovement}
+                                    onMouseUp={handleTextareaMouseUp}
                                     onFocus={handleCursorMovement}
                                     onKeyDown={handleKeyDown}
                                     style={{ fontSize: `${fontSize}px` }}
                                     placeholder="Type code or markdown here..."
-                                    className={`flex-1 h-full bg-transparent text-slate-800 dark:text-slate-100 px-3 py-3 font-mono leading-relaxed focus:outline-none resize-none overflow-y-auto text-left transition-all ${
-                                        isMarkdown ? 'whitespace-pre-wrap overflow-x-hidden' : 'whitespace-pre overflow-x-auto'
-                                    }`}
+                                    className={`flex-1 h-full bg-transparent text-slate-800 dark:text-slate-100 px-2 py-1 font-mono leading-normal focus:outline-none resize-none overflow-y-auto text-left transition-all ${wrapClass}`}
                                     spellCheck={isMarkdown}
                                 />
+                                {editorPrefs?.enableMultiCursor && visualCursors.map((c, index) => (
+                                    <div 
+                                        key={index}
+                                        className="absolute bg-indigo-500 w-[1.5px] pointer-events-none animate-caret"
+                                        style={{
+                                            left: `${c.left + 36}px`, // line number gutter offset
+                                            top: `${c.top}px`,
+                                            height: `${c.height}px`,
+                                            zIndex: 10
+                                        }}
+                                    />
+                                ))}
                             </div>
                         </div>
 
@@ -954,6 +1551,8 @@ export default function GenericEditorWorkspace({ text, onUpdate, language, isCom
                                 <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed text-left" dangerouslySetInnerHTML={{ __html: compiledHtml }} />
                             ) : language === 'html' ? (
                                 <iframe srcDoc={text} title="HTML Sandbox Render Preview" className="w-full h-full border-none bg-white rounded-xl shadow-sm min-h-[200px]" sandbox="allow-scripts" />
+                            ) : language === 'b64' ? (
+                                renderBase64Preview(text)
                             ) : (
                                 <pre className="font-mono text-[10px] leading-relaxed bg-slate-950 text-slate-200 p-3 rounded-xl overflow-auto text-left shadow-inner border border-white/5" dangerouslySetInnerHTML={{ __html: highlightedCodeHtml }} />
                             )}

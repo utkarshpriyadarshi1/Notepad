@@ -1,64 +1,50 @@
 # Notepad - Feature Catalog
 
-Notepad is a local-first sticky notes client. This document catalogues all core features, options, and capabilities currently implemented in the app.
+Notepad is an offline-first code and text editor. This document catalogues all core features, options, and capabilities currently implemented in the app.
 
 ---
 
-## 1. Window Sizing & Dashboard Integration
+## 1. Workspace Explorer & Layout
 
-### 1.1 Centralized Preferences Dashboard
-- **Auto-open on Startup**: The app always launches directly into the expanded dashboard mode (sized at a standard Windows application footprint of `1000x650`, centered and non-intrusive).
-- **Tabbed Settings Overlay**: Accessible from the gear icon in the header, splitting features into:
-  - **Preferences**: Allows theme presets configuration, database backups (import/export), and engine service start/stop triggers.
-  - **Widgets Manager**: Lists all notebooks (folders) and notes, allowing users to show, hide, pin, rename, or delete specific note instances from a single canvas.
+### 1.1 Collapsible Unified Sidebar
+- **Resizable Sidebar Explorer**: A single drag-to-resize sidebar panel that nests file documents inside notebook folders.
+- **Search Filtering**: Live database lookup that filters files and folders based on title, content, checklist entries, or description.
+- **Custom sorting**: Sort document lists instantly by:
+  - Custom drag-and-drop order
+  - Alphabetical order (Ascending/Descending)
+  - Time of creation (Newest/Oldest)
+  - Theme priority color weight
+- **Hover Shortcuts**: Quick action buttons on folders to directly append new notes inside them or rename/delete folders.
 
----
-
-## 2. Note Creation & Notebook Grouping
-
-### 2.1 Notebook Folders
-- Create virtual notebook dividers to group related sticky note widgets.
-- Rename folders and delete them (cascades note deletions safely).
-- Default folder (`My Notebook`) created automatically on first run.
-
-### 2.2 Sticky Widget Notes
-- Spawns separate draggable note canvases.
-- Create new notes directly inside folders from the widgets dashboard or using the `+` button in note headers.
-- Export specific widgets to local JSON backups, separate from full system exports.
+### 1.2 Multi-Document Tab Bar
+- **Tab Swapper**: Horizontal tabs showing all open files with priority color indicators and close icons.
+- **Auto-Switching Selection**: Automatically focuses adjacent files when closing active tabs.
+- **Glassmorphism Landing Dashboard**: Displays a premium placeholder dashboard with key editor shortcuts and application configurations when all file tabs are closed.
 
 ---
 
-## 3. Note Types & Content Rendering
+## 2. Editor Workspace & Formatters
 
-### 3.1 Checklist Widget Mode
-- Task forms for adding tasks with single-line entry.
-- Quick checkbox click handler to mark items as completed (which crosses them out).
-- Clear completed tasks instantly with a check-all action.
-- Edit/rename individual tasks and delete tasks globally.
+### 2.1 Lexical Bracket Pair Colorizer
+- **Character Highlight Lexer**: Analyzes syntax tokens for Java/Spring (YAML, properties), React (JS, JSX, TS, TSX), and SQL.
+- **Bracket Pair Matching**: Colorizes brackets (`()`, `[]`, `{}`) by nested depth (depths 0–3) to improve nested code visibility.
+- **Contextual Insert Toolbar**: Quick click-helpers in Markdown mode to inject style symbols (bold, italic, list formatters).
 
-### 3.2 Markdown Note Mode
-- Fully featured Markdown editor.
-- Custom toolbar with quick helpers for:
-  - Header formatting (`#`, `##`, `###`)
-  - Bold, Italic, and Strikethrough inline styling
-  - Lists (Ordered and Bullet lists)
-  - Code blocks and horizontal dividers
-- Clean parsing and rendering of Markdown on screen.
+### 2.2 Advanced Code Formatters
+- **SQL Formatter**: Standardizes spacing, indentation, and converts PostgreSQL keywords to uppercase.
+- **Properties & YAML Formatters**: Align keys and values cleanly.
+- **Bracket Indenter**: Formats curly braces and square brackets indents for Java, React, HTML, XML, and CSS files.
 
 ---
 
-## 4. Visual Themes & Preferences
+## 3. Data Integrity & Backups
 
-### 4.1 Harmonious Color Themes
-Choose from 5 styles:
-- **Glassmorphism**: A modern semi-transparent blur look.
-- **Yellow**: Warm pastel sticky note look.
-- **Pink**: Rose pastel look.
-- **Blue**: Cool sky pastel look.
-- **Green**: Soft emerald pastel look.
-- Support for **Dark Mode** toggle.
+### 3.1 10-Minute Auto-Versioning
+- **Global VCS snapshots worker**: Automatically checks all open documents every 10 minutes and commits snapshot revisions to SQLite for any modified notes.
+- **History Panel**: View past snapshots of the current file and restore previous commits.
 
-### 4.2 Pin & Window Coordinates Persistence
-- **Always Pinned Notes**: Toggle the pin icon on any note to set it to "always-on-top". Pinned notes automatically reopen in their separate windows when the app is restarted.
-- **Cascading Casters**: Quick recovery action to reset all window coords back to the center of the primary display workspace.
-- **Memory Diagnostic Purging**: In-dashboard analytics showing SQLite file size, runtime log size, and V8 cache bytes, complete with diagnostic cache purge triggers.
+### 3.2 Preferences & Diagnostics
+- **Preferences Dashboard**:
+  - **Config Tab**: Diagnostics panel detailing SQLite file sizes and runtime log files. Purges caches or resets database tables directly.
+  - **Data Hub Tab**: Master checklist database table manager that lets users toggle, rename, delete, or export individual checklist tasks globally.
+- **JSON Import/Export**: Bundle the entire local SQLite schema into JSON files. Supports backward-compatible imports from older sticky widget database profiles.

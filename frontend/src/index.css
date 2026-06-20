@@ -181,3 +181,69 @@ code {
     scrollbar-width: none;
 }
 
+/* Custom Editor Themes */
+.editor-theme-monokai {
+    background-color: #272822 !important;
+    color: #f8f8f2 !important;
+    border-color: #3e3d32 !important;
+}
+.editor-theme-monokai textarea {
+    caret-color: #f8f8f0 !important;
+    color: #f8f8f2 !important;
+}
+.editor-theme-monokai textarea::selection {
+    background-color: rgba(73, 72, 62, 0.99) !important;
+}
+.editor-theme-monokai .editor-gutter {
+    background-color: #1e1f1c !important;
+    color: #75715e !important;
+    border-color: #3e3d32 !important;
+}
+
+.editor-theme-dracula {
+    background-color: #282a36 !important;
+    color: #f8f8f2 !important;
+    border-color: #44475a !important;
+}
+.editor-theme-dracula textarea {
+    caret-color: #f8f8f0 !important;
+    color: #f8f8f2 !important;
+}
+.editor-theme-dracula textarea::selection {
+    background-color: #44475a !important;
+}
+.editor-theme-dracula .editor-gutter {
+    background-color: #191a21 !important;
+    color: #6272a4 !important;
+    border-color: #44475a !important;
+}
+
+.editor-theme-github-dark {
+    background-color: #0d1117 !important;
+    color: #c9d1d9 !important;
+    border-color: #30363d !important;
+}
+.editor-theme-github-dark textarea {
+    caret-color: #58a6ff !important;
+    color: #c9d1d9 !important;
+}
+.editor-theme-github-dark textarea::selection {
+    background-color: #283547 !important;
+}
+.editor-theme-github-dark .editor-gutter {
+    background-color: #161b22 !important;
+    color: #8b949e !important;
+    border-color: #30363d !important;
+}
+
+/* Custom Blinking Caret for Multi-Cursor editing */
+@keyframes caret-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.animate-caret {
+    animation: caret-blink 1s step-end infinite;
+}
+
+

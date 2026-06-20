@@ -21,20 +21,20 @@ export function useDesktopServices(db, saveToLocalStorage, refreshUiData, window
     const triggerJsonExport = () => {
         if (!db) return;
         try {
-            const widgetsRes = db.exec("SELECT * FROM sticky_widgets");
+            const notesRes = db.exec("SELECT * FROM sticky_notes");
             const tasksRes = db.exec("SELECT * FROM task_items");
 
             const bundle = {
-                app: "Electron Sticky Note Widget",
+                app: "Notepad++ Alternative Editor",
                 exportedAt: new Date().toISOString(),
-                widgets: widgetsRes.length > 0 && widgetsRes[0].values ? widgetsRes[0].values : [],
+                notes: notesRes.length > 0 && notesRes[0].values ? notesRes[0].values : [],
                 tasks: tasksRes.length > 0 && tasksRes[0].values ? tasksRes[0].values : []
             };
 
             const dataUri = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundle, null, 2));
             const anchor = document.createElement('a');
             anchor.setAttribute("href", dataUri);
-            anchor.setAttribute("download", `widget_backup_${Date.now()}.json`);
+            anchor.setAttribute("download", `notepad_backup_${Date.now()}.json`);
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();
@@ -50,11 +50,12 @@ export function useDesktopServices(db, saveToLocalStorage, refreshUiData, window
             try {
                 const payload = JSON.parse(e.target.result);
                 if (!db) return;
-                db.run("DELETE FROM task_items; DELETE FROM sticky_widgets;");
-                if (payload.widgets) {
-                    payload.widgets.forEach(row => {
+                db.run("DELETE FROM task_items; DELETE FROM sticky_notes;");
+                const notesToInsert = payload.notes || payload.widgets;
+                if (notesToInsert) {
+                    notesToInsert.forEach(row => {
                         const placeholders = row.map(() => '?').join(', ');
-                        db.run(`INSERT INTO sticky_widgets VALUES (${placeholders})`, row);
+                        db.run(`INSERT INTO sticky_notes VALUES (${placeholders})`, row);
                     });
                 }
                 if (payload.tasks) {

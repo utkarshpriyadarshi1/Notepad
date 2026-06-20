@@ -3,19 +3,18 @@
 Track pending tasks, improvements, and achievements for the Notepad application.
 
 ## 🏆 Achievements (Completed)
-- [x] **Centralized Configuration**: All metadata consolidated into root-level `app.config.json`.
-- [x] **Decoupled Architecture**: Codebase structured into isolated `frontend`, `backend`, and `builder` directories.
-- [x] **Dynamic Help Overlay**: Custom help dashboard with tabbed guides parsed from markdown docs.
-- [x] **Clean Iconography**: All action buttons refactored to be icon-only using Font Awesome Free.
-- [x] **Automated Build Tooling**: Independent python scripts for version bumps and self-signed certificate generation.
-- [x] **Concurrencies**: Concurrent development setup launcher via `dev.bat` / `dev.sh`.
-- [x] **Internationalization**: Language select options for both English and Hindi.
-- [x] **Cache Clean HUD**: Preferences pane offering web and log file size diagnostics and purging capabilities.
+- [x] **Unified Explorer Sidebar**: Integrated folders and files into a single collapsible sidebar tree with drag-and-drop organization.
+- [x] **Tabbed Workspace System**: Added support for editing multiple documents in horizontal, closable document tabs.
+- [x] **Lexical Syntax Highlighter**: Constructed a fast, single-pass syntax parser with color-coded bracket depth levels (0-3) for Java, Spring (YAML, properties), React, and PostgreSQL SQL.
+- [x] **Code Formatters**: Implemented automatic beautification and layout alignment for JSON, SQL, Properties, YAML, React, and Java.
+- [x] **VCS Auto-Versioning**: Established a robust background timer that creates local SQLite revision checkpoints for open documents every 10 minutes.
+- [x] **Clean Decoupled Architecture**: Cleaned up the app layout and consolidated environment scripts in `builder/` and client code in `frontend/`.
+- [x] **Centralized Configuration**: Configured versions, icons, and theme colors into a single root `app.config.json` file.
 
 ## 📋 Backlog & Feature Pipeline
-- [ ] **Data Export Encryption**: Allow backups to be optionally encrypted using passwords.
-- [ ] **Rich Note Reminders**: Trigger local OS-level notifications for checklist due dates.
-- [ ] **Keyboard Shortcuts Panel**: Add quick shortcuts mapping overlay (e.g. `Ctrl + N` for new note).
-- [ ] **WASM-SQLite Optimizations**: Tune memory utilization bounds for multiple cascading widgets.
-- [ ] **Visual Theme Editor**: Let users customize gradients and export their custom themes.
-- [ ] **Platform Native Builds**: Compile native macOS DMG and Linux AppImage targets in CI/CD pipeline.
+- [ ] **Find & Replace Enhancements**: Add toggle buttons for case-sensitivity, whole word match, and regular expression (regex) search patterns.
+- [ ] **Custom Snippets & Boilerplates**: Introduce template blueprints for quickly creating boilerplate config files (e.g., React template, application.yml, standard SQL schema).
+- [ ] **VCS Revision Timeline**: Expose a visual side-by-side diff timeline comparing the active file with historical snapshots.
+- [ ] **Additional Syntax Highlighters**: Extend syntax support to C++, Python, and Markdown-code-block block highlight rendering.
+- [ ] **Custom Editor Skins**: Add dark themes like Monokai, Dracula, or Solarized alongside the default glassmorphic themes.
+- [ ] **Cross-Platform Installers**: Setup automated pipelines to package native macOS .dmg and Linux .AppImage installer binaries.

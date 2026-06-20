@@ -121,6 +121,47 @@ app.whenReady().then(() => {
         return w ? w.widgetId : 'widget_1';
     });
 
+    ipcMain.handle('get-active-workspace', (event) => {
+        const w = BrowserWindow.fromWebContents(event.sender);
+        return w ? w.workspacePath : (activeWorkspacePath || getInitialWorkspacePath());
+    });
+
+    ipcMain.handle('open-workspace-folder-dialog', async (event) => {
+        const { dialog } = require('electron');
+        const result = await dialog.showOpenDialog({
+            properties: ['openDirectory']
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+            const selectedPath = result.filePaths[0];
+            createWidgetWindow(null, selectedPath);
+            return selectedPath;
+        }
+        return null;
+    });
+
+    ipcMain.handle('change-default-workspace-path', async (event) => {
+        const { dialog } = require('electron');
+        const result = await dialog.showOpenDialog({
+            properties: ['openDirectory']
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+            const selectedPath = result.filePaths[0];
+            const globalConfigPath = path.join(app.getPath('userData'), 'global.config.json');
+            let data = {};
+            try {
+                if (fs.existsSync(globalConfigPath)) {
+                    data = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
+                }
+            } catch (e) {
+                console.error("Failed parsing global config for default workspace update:", e);
+            }
+            data.defaultWorkspacePath = selectedPath;
+            fs.writeFileSync(globalConfigPath, JSON.stringify(data, null, 2), 'utf8');
+            return selectedPath;
+        }
+        return null;
+    });
+
     ipcMain.handle('read-help-files', async () => {
         try {
             const docsHelpPath = app.isPackaged
@@ -384,7 +425,41 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // 1. RE-ENABLE HARDWARE ACCELERATION (Disabling it causes blank/hidden windows on newer Windows 11 updates)
 // Remove or comment out: app.disableHardwareAcceleration();
 
-function createWidgetWindow(targetWidgetId = null) {
+let activeWorkspacePath = null;
+
+function getInitialWorkspacePath() {
+    for (let i = 1; i < process.argv.length; i++) {
+        const arg = process.argv[i];
+        if (arg.startsWith('--workspace=')) {
+            const wsPath = arg.split('=')[1];
+            activeWorkspacePath = path.resolve(wsPath);
+            return activeWorkspacePath;
+        }
+        if (arg !== '.' && !arg.startsWith('-') && fs.existsSync(arg) && fs.statSync(arg).isDirectory()) {
+            activeWorkspacePath = path.resolve(arg);
+            return activeWorkspacePath;
+        }
+    }
+
+    const globalConfigPath = path.join(app.getPath('userData'), 'global.config.json');
+    if (fs.existsSync(globalConfigPath)) {
+        try {
+            const data = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
+            if (data && data.defaultWorkspacePath) {
+                activeWorkspacePath = path.resolve(data.defaultWorkspacePath);
+                return activeWorkspacePath;
+            }
+        } catch (e) {
+            console.error("Failed to read global config:", e);
+        }
+    }
+
+    const fallbackPath = path.join(app.getPath('documents'), 'NotepadWorkspace');
+    activeWorkspacePath = fallbackPath;
+    return activeWorkspacePath;
+}
+
+function createWidgetWindow(targetWidgetId = null, workspacePath = null) {
     const activeWindows = BrowserWindow.getAllWindows();
     
     // Determine if this is the main notepad window
@@ -395,6 +470,23 @@ function createWidgetWindow(targetWidgetId = null) {
     }
     
     const isMain = widgetId === 'main_notepad';
+    
+    let resolvedWorkspacePath = workspacePath;
+    if (!resolvedWorkspacePath) {
+        if (isMain) {
+            resolvedWorkspacePath = getInitialWorkspacePath();
+        } else {
+            resolvedWorkspacePath = activeWorkspacePath || getInitialWorkspacePath();
+        }
+    }
+
+    if (!fs.existsSync(resolvedWorkspacePath)) {
+        try {
+            fs.mkdirSync(resolvedWorkspacePath, { recursive: true });
+        } catch (err) {
+            console.error("Failed creating workspace directory:", err);
+        }
+    }
     
     const width = isMain ? 1000 : (config.windowDefaults?.width || 350);
     const height = isMain ? 650 : (config.windowDefaults?.height || 420);
@@ -425,6 +517,7 @@ function createWidgetWindow(targetWidgetId = null) {
 
     const win = new BrowserWindow(winOptions);
     win.widgetId = widgetId;
+    win.workspacePath = resolvedWorkspacePath;
 
     if (isMain) {
         win.center();

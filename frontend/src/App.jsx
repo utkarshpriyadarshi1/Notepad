@@ -22,6 +22,37 @@ export default function App() {
         });
     };
 
+    const [editorPrefs, setEditorPrefs] = useState(() => {
+        const stored = localStorage.getItem('editorPrefs');
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {
+                console.error("Failed to parse editorPrefs from localStorage:", e);
+            }
+        }
+        return {
+            theme: 'standard', // 'standard', 'monokai', 'dracula', 'github-dark'
+            fontSize: 12,
+            tabSize: 4,
+            lineWrap: true,
+            backupInterval: 600000, // 10 minutes in ms
+            enableMultiCursor: false,
+            enableLocalFileAutoSync: true,
+            defaultFileName: 'Note',
+            defaultFolderName: 'Notebook'
+        };
+    });
+
+    const updateEditorPrefs = (newPrefs) => {
+        setEditorPrefs(prev => {
+            const next = { ...prev, ...newPrefs };
+            localStorage.setItem('editorPrefs', JSON.stringify(next));
+            return next;
+        });
+    };
+
+
     useEffect(() => {
         const handleStorageChange = (e) => {
             if (e.key === 'theme') {
@@ -48,7 +79,8 @@ export default function App() {
         deleteNote, allFolders, createFolder, renameFolder, deleteFolder, createNoteInFolder, triggerRefresh,
         addEvent, deleteEvent, addExpense, deleteExpense,
         addVcsCommit, getVcsCommits, restoreVcsCommit,
-        toggleNoteFlag, swapNotesOrder,
+        toggleNoteFlag, swapNotesOrder, toggleNotePin,
+        savedOpenUuids, savedSelectedUuid, saveLayoutState,
         renameTaskGlobal, exportSingleTask
     } = useSqliteData();
 
@@ -95,6 +127,12 @@ export default function App() {
                 // Flag & Order
                 toggleNoteFlag={toggleNoteFlag}
                 swapNotesOrder={swapNotesOrder}
+                onToggleNotePin={toggleNotePin}
+                
+                // Layout states & persist
+                savedOpenUuids={savedOpenUuids}
+                savedSelectedUuid={savedSelectedUuid}
+                onSaveLayoutState={saveLayoutState}
                 
                 settingsOpen={settingsOpen}
                 setSettingsOpen={setSettingsOpen}
@@ -113,6 +151,10 @@ export default function App() {
                 // Day/Night mode props
                 isDarkMode={isDarkMode}
                 onToggleDarkMode={toggleDarkMode}
+                
+                // Preferences
+                editorPrefs={editorPrefs}
+                onUpdateEditorPrefs={updateEditorPrefs}
                 
                 ipcRenderer={ipcRenderer}
             />
@@ -178,6 +220,10 @@ export default function App() {
             // Day/Night mode props
             isDarkMode={isDarkMode}
             onToggleDarkMode={toggleDarkMode}
+            
+            // Preferences
+            editorPrefs={editorPrefs}
+            onUpdateEditorPrefs={updateEditorPrefs}
             
             ipcRenderer={ipcRenderer}
         />

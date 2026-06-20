@@ -1,7 +1,6 @@
 import {useState} from 'react';
 import TabNavigation from './settings/TabNavigation';
 import PreferencesTab from './settings/PreferencesTab';
-import WidgetTab from './settings/WidgetTab';
 
 export default function SettingsPanel({
                                            isOpen,
@@ -12,30 +11,19 @@ export default function SettingsPanel({
                                            onImport,
                                            serviceStatus,
                                            onServiceAction,
-                                           onExportWidget,
                                            
-                                           // Widget Props
-                                           allWidgets = [],
-                                           currentWidgetId,
-                                           onRenameWidget,
-                                           onChangeWidgetTheme,
-                                           onDeleteWidget,
-                                           onFocusWidget,
-                                           onCreateWidget,
-
                                            // Folders & DB Props
-                                           allFolders = [],
-                                           onCreateFolder,
-                                           onRenameFolder,
-                                           onDeleteFolder,
-                                           onCreateWidgetInFolder,
                                            db,
                                            onTriggerRefresh,
 
                                            // i18n
                                            t,
                                            lang,
-                                           setLang
+                                           setLang,
+
+                                           // Preferences
+                                           editorPrefs,
+                                           onUpdateEditorPrefs
                                        }) {
     const [activeTab, setActiveTab] = useState("config");
 
@@ -54,28 +42,8 @@ export default function SettingsPanel({
                         t={t}
                         lang={lang}
                         setLang={setLang}
-                    />
-                );
-            case "widgets":
-                return (
-                    <WidgetTab
-                        allWidgets={allWidgets}
-                        currentWidgetId={currentWidgetId}
-                        onRenameWidget={onRenameWidget}
-                        onChangeWidgetTheme={onChangeWidgetTheme}
-                        onDeleteWidget={onDeleteWidget}
-                        onFocusWidget={onFocusWidget}
-                        onCreateWidget={onCreateWidget}
-                        onExportWidget={onExportWidget}
-
-                        allFolders={allFolders}
-                        onCreateFolder={onCreateFolder}
-                        onRenameFolder={onRenameFolder}
-                        onDeleteFolder={onDeleteFolder}
-                        onCreateWidgetInFolder={onCreateWidgetInFolder}
-                        db={db}
-                        onTriggerRefresh={onTriggerRefresh}
-                        t={t}
+                        editorPrefs={editorPrefs}
+                        onUpdateEditorPrefs={onUpdateEditorPrefs}
                     />
                 );
             default:
@@ -92,9 +60,7 @@ export default function SettingsPanel({
             <TabNavigation
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
-                widgetCount={allWidgets.length}
                 onClose={onClose}
-                t={t}
             />
 
             {/* 2. Primary Layout Workspace Routing Panel Router */}

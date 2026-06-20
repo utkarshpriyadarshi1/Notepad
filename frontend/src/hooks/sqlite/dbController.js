@@ -1,7 +1,7 @@
 /* eslint-env node */
 import initSqlJs from 'sql.js';
 
-const LATEST_SCHEMA_VERSION = 11;
+const LATEST_SCHEMA_VERSION = 13;
 
 export async function initializeLocalDatabase(ipcRenderer, defaultName, currentWindowId = 'main_notepad') {
     try {
@@ -35,6 +35,7 @@ export async function initializeLocalDatabase(ipcRenderer, defaultName, currentW
 function buildNormalizedSchema(db, defaultName, currentWindowId) {
     db.run(`
         CREATE TABLE IF NOT EXISTS sys_migrations (migration_id INTEGER PRIMARY KEY AUTOINCREMENT, version_build INTEGER UNIQUE, executed_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS sys_layout_state (layout_key TEXT PRIMARY KEY, open_note_uuids TEXT, selected_note_uuid TEXT);
         CREATE TABLE IF NOT EXISTS sticky_folders (folder_uuid TEXT PRIMARY KEY, folder_name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS sticky_notes (
             note_uuid TEXT PRIMARY KEY, 
@@ -50,6 +51,7 @@ function buildNormalizedSchema(db, defaultName, currentWindowId) {
             is_flagged INTEGER DEFAULT 0, 
             sort_order INTEGER DEFAULT 0, 
             is_pinned INTEGER DEFAULT 0,
+            local_file_path TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
             FOREIGN KEY(parent_folder_uuid) REFERENCES sticky_folders(folder_uuid) ON DELETE CASCADE
@@ -279,6 +281,26 @@ function executeDatabaseUpgrades(db, defaultName, currentWindowId) {
                     console.log("⚡ [Migration] Added indexes on foreign key columns for query optimization.");
                 } catch (e) {
                     console.error("Migration: failed to add indexes:", e);
+                }
+            }
+
+            // Upgrade to 12: Add local_file_path column to sticky_notes
+            if (activeVersion < 12) {
+                try {
+                    db.run("ALTER TABLE sticky_notes ADD COLUMN local_file_path TEXT");
+                    console.log("⚡ [Migration] Added local_file_path column to sticky_notes table.");
+                } catch (e) {
+                    console.warn("Migration: column local_file_path might already exist on sticky_notes:", e);
+                }
+            }
+
+            // Upgrade to 13: Create sys_layout_state table
+            if (activeVersion < 13) {
+                try {
+                    db.run("CREATE TABLE IF NOT EXISTS sys_layout_state (layout_key TEXT PRIMARY KEY, open_note_uuids TEXT, selected_note_uuid TEXT)");
+                    console.log("⚡ [Migration] Created sys_layout_state table.");
+                } catch (e) {
+                    console.error("Migration: failed to create sys_layout_state table:", e);
                 }
             }
 

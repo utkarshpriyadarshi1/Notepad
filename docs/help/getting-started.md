@@ -1,11 +1,11 @@
 # Getting Started with Notepad
 
-Welcome to **Notepad**, a modern, offline-first productivity workspace.
+Welcome to **Notepad**, a modern, high-productivity offline-first code and text editor.
 
-## 🖥️ Application Type & Standalone Mode
-Notepad is built strictly as a **standalone desktop application** using Electron, React, and SQLite. It operates **100% offline**, ensuring your notes, tasks, and markdown notebooks never leave your local device. There is no web portal or cloud requirement, guaranteeing complete privacy and zero latency.
+## 🖥️ Standalone Offline Mode
+Notepad is built strictly as a **desktop application** using Electron, React, and SQLite. It operates **100% offline**, ensuring your code documents and checklists never leave your local device. There is no cloud telemetry or account requirement, guaranteeing complete privacy and offline latency-free speed.
 
-## 🚀 Supported Platforms & Devices
+## 🚀 Supported Platforms
 
 | Platform | Supported Versions | Package Format |
 | :--- | :--- | :--- |
@@ -13,9 +13,9 @@ Notepad is built strictly as a **standalone desktop application** using Electron
 | **macOS** | Catalina, Big Sur, Monterey, Ventura, Sonoma+ | DMG Installer |
 | **Linux** | Ubuntu, Debian, Fedora, Arch+ | AppImage / Debian Packages |
 
-## ✨ Core Features
-- **Offline Widget Canvas**: Launch independent, lightweight sticky widgets across your desktop. Custom size limits and always-on-top window pins prevent occlusion.
-- **Dual-Mode Canvas Editor**: Switch dynamically between checkbox checklists (tasks) and raw Markdown editors with formatting shortcut toolbars.
-- **Hierarchical Folders**: Categorize and group notes inside customized notebook folders.
-- **Local Relational Database**: Powered by SQL.js and SQLite to store structured items.
-- **Backup & Migration**: Import and export widget settings or notebooks as JSON streams to move notes between machines.
+## ✨ Quick Start Guide
+1. **Explore the Sidebar Tree**: Expand notebooks in the unified sidebar explorer. Click files to open them in document tabs. Drag files to categorize them into folders.
+2. **Switch Document Tabs**: Use the horizontal document tabs at the top to toggle between open files. Click `x` on any tab to close it.
+3. **Format Code**: Open a code document (e.g. `.js`, `.java`, `.sql`, `.yml`, `.properties`). In Write or Split modes, click the **Format** button in the editor toolbar to automatically clean up and align your code syntax.
+4. **Day/Night mode toggle**: Click the sun/moon icon in the titlebar to toggle between light and dark visual themes.
+5. **Autosave & Backup**: Your changes are automatically synced to the local SQLite database. Modified files are backed up to the local VCS snapshot engine every 10 minutes.

@@ -1,13 +1,15 @@
 # Tasks & Checklist Guide
 
-Notepad lets you turn any sticky note widget into an interactive checklist.
+Notepad lets you manage interactive checklists using dedicated file types.
 
-## 📋 Checklist Operations
-- **Add Tasks**: Type your task in the input box and click the **Plus (+)** button or press `Enter` to append it.
-- **Toggle Status**: Click on a task row or checkbox to toggle between *Active* and *Completed* states.
-- **Delete Item**: Hover over a task row and click the **Trash** icon to delete it instantly.
-- **Clear Completed**: Click the **Double Check** button on the bottom right of the checklist view to delete all checked items at once.
+## 📋 Creating Checklists
+Any note with `.todo` or `.list` file extensions will automatically render as an interactive checklist in the editor workspace:
+- **Add Tasks**: Type your task text in the input box and press `Enter` or click the **Plus (+)** button.
+- **Toggle Status**: Click a checkbox to toggle between *Active* and *Completed* states (completed tasks are automatically crossed out).
+- **Delete Item**: Click the **Trash** icon on a task row to delete it.
+- **Purge Completed**: Click the **Double Check** checkmark icon to clear all checked items in one click.
 
-## 🗂️ Notebook Reorganization
-- Use the **Settings/Preferences** dashboard to group sticky widgets into separate notebooks/folders.
-- You can create notes inside specific folders to keep tasks segregated by projects.
+## ⚙️ Master Data Hub Management
+Open Settings (gear icon) and click the **Data Hub** tab to view a global list of all tasks across the workspace:
+- View all tasks from all notes consolidated into a single database matrix.
+- Complete, rename, delete, or export individual tasks directly.

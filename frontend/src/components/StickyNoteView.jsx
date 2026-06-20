@@ -81,6 +81,10 @@ export default function StickyNoteView({
     isDarkMode,
     onToggleDarkMode,
     
+    // Preferences
+    editorPrefs,
+    onUpdateEditorPrefs,
+    
     ipcRenderer
 }) {
     const [isFocused, setIsFocused] = useState(true);
@@ -95,7 +99,7 @@ export default function StickyNoteView({
         const parts = title.split('.');
         if (parts.length > 1) {
             const ext = parts[parts.length - 1].toLowerCase();
-            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml'];
+            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml', 'b64'];
             if (supported.includes(ext)) {
                 return ext === 'yaml' ? 'yml' : ext;
             }
@@ -304,6 +308,7 @@ export default function StickyNoteView({
                                         onUpdate={updateMarkdown} 
                                         language={mode} 
                                         isCompact={true}
+                                        editorPrefs={editorPrefs}
                                     />
                                 );
                             })()}
@@ -354,11 +359,9 @@ export default function StickyNoteView({
                         serviceStatus={serviceStatus}
                         onServiceAction={handleServiceAction}
 
-                        // DataHubTab props
-                        onToggleTask={toggleTask}
-                        onDeleteTask={deleteTaskGlobal}
-                        onRenameTask={renameTaskGlobal}
-                        onExportTask={exportSingleTask}
+                        // Preferences
+                        editorPrefs={editorPrefs}
+                        onUpdateEditorPrefs={onUpdateEditorPrefs}
                     />
                 </div>
             </div>

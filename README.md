@@ -1,29 +1,30 @@
 # Notepad 📝
 
-**Notepad** is an offline, lightweight desktop sticky note widget and task management tool. It is designed to act as a distraction-free, persistent desktop notepad that integrates checklists and Markdown rendering inside sleek, customizable glassmorphism widgets.
+**Notepad** is an offline, high-productivity desktop code and text editor. Designed as a sleek alternative to editors like Notepad++, it features a unified sidebar explorer, a horizontal document tabs interface, lexical syntax highlighting with bracket-pair colorization, code auto-formatters, automatic file versioning, and SQLite-backed local storage inside a modern glassmorphic interface.
 
 ---
 
 ## ✨ Key Features
 
-- 📌 **Always On Top Sticky Widgets**: Pin notes to your desktop screen so they stay active and visible above other open windows.
-- 🎨 **Sleek Customization**: Switch between multiple harmonious, modern themes (Glassmorphism, Dark, Light, Amber, Rose, Sky, and Emerald).
-- 🔀 **Dual-Mode Canvas**: Toggle instantly between interactive checklists (with subtasks) and Markdown rich text editing (complete with formatting tools).
-- 📁 **Folder Grouping**: Categorize notes and checklist widgets into custom folders and notebooks.
-- 💾 **Native Local Storage**: Persists data inside a local, performant SQLite database file powered by SQL.js WASM driver.
-- 🌍 **International Language Support**: Full UTF-8 database encoding allows you to write in any language (including Sanskrit, Hindi, Japanese, Arabic, and Emoji).
-- 📦 **Standalone Packaging**: Package the application into standalone installers (.exe, .dmg, .AppImage) using automated pipeline scripts.
+- 📁 **Unified Explorer Sidebar**: A collapsible folder and file tree view with custom sorting (custom, alphabetical, priority, newest/oldest) and drag-and-drop file categorization.
+- 📑 **Multi-Document Tabs**: A scrollable horizontal tab bar to easily switch between multiple open text or code files, with a glassmorphism landing dashboard when all tabs are closed.
+- 🎨 **Syntax Highlighting & Bracket Colorizer**: A robust syntax highlighter with bracket pair colorization (depths 0–3) for Java/Spring (YAML, properties), React (JS, JSX, TS, TSX), and PostgreSQL SQL.
+- ⚙️ **Code Auto-Formatters**: Built-in formatters for JSON, Java, React, XML/HTML, CSS, YAML, Properties, and Postgres SQL (keywords uppercase + alignment).
+- 🔄 **VCS Auto-Versioning**: A background worker that automatically takes version snapshots of modified open tabs every 10 minutes to prevent data loss.
+- 💾 **Native SQLite Storage**: Secure local data persistence in SQLite powered by WebAssembly SQL.js, optimized for zero latency and complete privacy.
+- 🌍 **Internationalization**: Full UTF-8 encoding support to write in any language (English, Sanskrit, Hindi, Japanese, Arabic, Emoji).
+- 📦 **Standalone Packaging**: Ready to compile into independent installers (.exe, .dmg, .AppImage) via builder scripts.
 
 ---
 
 ## 📂 Project Directory Structure
 
 ```text
-├── builder/             # Onboarding, environment dev runners, build & package scripts
-├── backend/             # Electron main process files (window manager, fs controllers)
-├── frontend/            # React + Vite renderer source (UI components, styling, hooks)
-├── docs/                # Architecture plans, db schemas, and setup instructions
-└── app.config.json      # Central configuration file for naming, versions, and icons
+├── builder/             # Dev runners, certificates, setup, build, and packaging scripts
+├── backend/             # Electron main process (window lifecycle, IPC handlers, background logs)
+├── frontend/            # React + Vite renderer source (UI tabs, explorer tree, editor, hooks)
+├── docs/                # Architecture plans, database schemas, and guides
+└── app.config.json      # Central metadata configuration for app name, versions, icons, and themes
 ```
 
 ---

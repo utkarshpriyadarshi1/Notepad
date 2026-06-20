@@ -169,7 +169,7 @@ export default function HelpModal({ isOpen, onClose }) {
                                             <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 rounded-lg text-[9px] font-bold font-mono">.log</span>
                                             <h4 className="font-bold text-slate-800 dark:text-slate-200 mt-2 mb-1">Event Logs Timeline</h4>
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-[10px]">Chronological stream ideal for journals, diary files, and meeting summaries.</p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-[10px]">Chronological stream ideal for journals, event logs, and meeting summaries.</p>
                                     </div>
 
                                     <div className="p-3 bg-gradient-to-br from-indigo-50/60 to-indigo-100/10 dark:from-slate-950/50 dark:to-indigo-950/10 rounded-xl border border-black/5 dark:border-white/5 flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:scale-[1.02]">

@@ -19,6 +19,8 @@ export function useSqliteData() {
     const [windowId, setWindowId] = useState('note_1');
     const [allNotes, setAllNotes] = useState([]);
     const [allFolders, setAllFolders] = useState([]);
+    const [savedOpenUuids, setSavedOpenUuids] = useState([]);
+    const [savedSelectedUuid, setSavedSelectedUuid] = useState(null);
 
     const triggerRefresh = useCallback(() => setRefreshTrigger(prev => prev + 1), []);
 
@@ -99,7 +101,7 @@ export function useSqliteData() {
             }
 
             // Query all notes with parent_folder_uuid (metadata only to optimize memory and queries)
-            const allNotesQuery = "SELECT note_uuid, parent_folder_uuid, note_title, note_theme_preset, note_view_mode, is_flagged, sort_order, created_at, is_pinned FROM sticky_notes";
+            const allNotesQuery = "SELECT note_uuid, parent_folder_uuid, note_title, note_theme_preset, note_view_mode, is_flagged, sort_order, created_at, is_pinned, local_file_path FROM sticky_notes";
             const allNotesRes = targetDb.exec(allNotesQuery);
             if (allNotesRes && allNotesRes.length > 0 && allNotesRes[0].values) {
                 setAllNotes(allNotesRes[0].values.map(row => ({
@@ -111,10 +113,29 @@ export function useSqliteData() {
                     isFlagged: row[5] === 1,
                     sortOrder: row[6] || 0,
                     createdAt: row[7] || "",
-                    isPinned: row[8] === 1
+                    isPinned: row[8] === 1,
+                    localFilePath: row[9] || ""
                 })));
             } else {
                 setAllNotes([]);
+            }
+
+            // Query saved layout state
+            try {
+                const layoutRes = targetDb.exec("SELECT open_note_uuids, selected_note_uuid FROM sys_layout_state WHERE layout_key = 'main_workspace'");
+                if (layoutRes && layoutRes.length > 0 && layoutRes[0].values) {
+                    const row = layoutRes[0].values[0];
+                    const openStr = row[0] || "";
+                    const loadedOpenUuids = openStr ? openStr.split(',') : [];
+                    setSavedOpenUuids(loadedOpenUuids);
+                    setSavedSelectedUuid(row[1] || null);
+                } else {
+                    setSavedOpenUuids([]);
+                    setSavedSelectedUuid(null);
+                }
+            } catch (e) {
+                setSavedOpenUuids([]);
+                setSavedSelectedUuid(null);
             }
         } catch (err) {
             if (ipcRenderer) {
@@ -123,7 +144,7 @@ export function useSqliteData() {
                 });
             }
         }
-    }, [setTasks, setNoteTitle, setNoteColor, setViewMode, setMarkdownText, setAllNotes, setAllFolders]);
+    }, [setTasks, setNoteTitle, setNoteColor, setViewMode, setMarkdownText, setAllNotes, setAllFolders, setSavedOpenUuids, setSavedSelectedUuid]);
 
     const reloadDatabase = useCallback(async () => {
         if (!ipcRenderer) return;
@@ -272,10 +293,12 @@ export function useSqliteData() {
     };
 
     const createFolder = useCallback((name) => {
-        if (!db || !name.trim()) return;
-        db.run("INSERT INTO sticky_folders (folder_uuid, folder_name) VALUES (?, ?)", ["folder_" + Date.now(), name.trim()]);
+        if (!db || !name.trim()) return null;
+        const newUuid = "folder_" + Date.now();
+        db.run("INSERT INTO sticky_folders (folder_uuid, folder_name) VALUES (?, ?)", [newUuid, name.trim()]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
+        return newUuid;
     }, [db, triggerRefresh]);
 
     const renameFolder = useCallback((uuid, newName) => {
@@ -297,7 +320,7 @@ export function useSqliteData() {
         const parts = title.split('.');
         if (parts.length > 1) {
             const ext = parts[parts.length - 1].toLowerCase();
-            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml'];
+            const supported = ['md', 'todo', 'list', 'log', 'xpnc', 'html', 'css', 'js', 'jsx', 'java', 'xml', 'json', 'sql', 'properties', 'yml', 'yaml', 'b64'];
             if (supported.includes(ext)) {
                 return ext === 'yaml' ? 'yml' : ext;
             }
@@ -306,12 +329,13 @@ export function useSqliteData() {
     };
 
     const createNoteInFolder = useCallback((folderUuid, title, initialContent = '# Write ideas here...') => {
-        if (!db || !title.trim()) return;
+        if (!db || !title.trim()) return null;
         const newNoteId = "note_" + Date.now();
         const mode = getEditorModeFromTitle(title);
         db.run("INSERT INTO sticky_notes (note_uuid, parent_folder_uuid, note_title, note_theme_preset, note_view_mode, note_markdown_content, placement_x_pos, placement_y_pos, geometry_width, geometry_height) VALUES (?, ?, ?, 'yellow', ?, ?, 100, 100, 350, 420)", [newNoteId, folderUuid, title.trim(), mode, initialContent]);
         persistDatabaseToDisk(ipcRenderer, db);
         triggerRefresh();
+        return newNoteId;
     }, [db, triggerRefresh]);
 
     const addEvent = useCallback((noteUuid, text) => {
@@ -456,6 +480,28 @@ export function useSqliteData() {
         }
     }, [db, triggerRefresh]);
 
+    const toggleNotePin = useCallback((uuid, currentPinState) => {
+        if (!db) return;
+        const nextVal = currentPinState ? 0 : 1;
+        try {
+            db.run("UPDATE sticky_notes SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE note_uuid = ?", [nextVal, uuid]);
+            persistDatabaseToDisk(ipcRenderer, db);
+            triggerRefresh();
+        } catch (e) {
+            console.error("Failed to toggle note pin:", e);
+        }
+    }, [db, triggerRefresh]);
+
+    const saveLayoutState = useCallback((openUuids, selectedUuid) => {
+        if (!db) return;
+        try {
+            db.run("INSERT OR REPLACE INTO sys_layout_state (layout_key, open_note_uuids, selected_note_uuid) VALUES ('main_workspace', ?, ?)", [openUuids.join(','), selectedUuid || '']);
+            persistDatabaseToDisk(ipcRenderer, db);
+        } catch (e) {
+            console.error("Failed to save layout state to db:", e);
+        }
+    }, [db, ipcRenderer]);
+
     return {
         db,
         dbReady,
@@ -471,6 +517,9 @@ export function useSqliteData() {
         windowId,
         allNotes,
         allFolders,
+        savedOpenUuids,
+        savedSelectedUuid,
+        saveLayoutState,
         createFolder,
         renameFolder,
         deleteFolder,
@@ -485,6 +534,7 @@ export function useSqliteData() {
         restoreVcsCommit,
         toggleNoteFlag,
         swapNotesOrder,
+        toggleNotePin,
         ...taskModule,
         ...themeModule,
         ...markdownModule,
