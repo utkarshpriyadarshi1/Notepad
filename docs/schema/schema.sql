@@ -1,5 +1,5 @@
 -- schema.sql
--- SQLite database table schema setups (Schema Version 11)
+-- SQLite database table schema setups (Schema Version 14)
 
 CREATE TABLE IF NOT EXISTS sys_migrations (
     migration_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7,9 +7,16 @@ CREATE TABLE IF NOT EXISTS sys_migrations (
     executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sys_layout_state (
+    layout_key TEXT PRIMARY KEY,
+    open_note_uuids TEXT,
+    selected_note_uuid TEXT
+);
+
 CREATE TABLE IF NOT EXISTS sticky_folders (
     folder_uuid TEXT PRIMARY KEY,
     folder_name TEXT,
+    folder_color TEXT DEFAULT 'indigo',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,6 +35,7 @@ CREATE TABLE IF NOT EXISTS sticky_notes (
     is_flagged INTEGER DEFAULT 0, 
     sort_order INTEGER DEFAULT 0, 
     is_pinned INTEGER DEFAULT 0,
+    local_file_path TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
     FOREIGN KEY(parent_folder_uuid) REFERENCES sticky_folders(folder_uuid) ON DELETE CASCADE

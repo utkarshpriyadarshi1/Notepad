@@ -72,7 +72,7 @@ graph TD
 
 ## 3. Database Schema Specification
 
-The database contains the following tables and relation constraints (Version 10):
+The database contains the following tables and relation constraints (Version 14):
 
 ```mermaid
 erDiagram
@@ -81,9 +81,15 @@ erDiagram
         INTEGER version_build UNIQUE
         DATETIME executed_at
     }
+    sys_layout_state {
+        TEXT layout_key PK
+        TEXT open_note_uuids
+        TEXT selected_note_uuid
+    }
     sticky_folders {
         TEXT folder_uuid PK
         TEXT folder_name
+        TEXT folder_color
         DATETIME created_at
         DATETIME updated_at
     }
@@ -101,6 +107,7 @@ erDiagram
         INTEGER is_flagged
         INTEGER sort_order
         INTEGER is_pinned
+        TEXT local_file_path
         DATETIME created_at
         DATETIME updated_at
     }

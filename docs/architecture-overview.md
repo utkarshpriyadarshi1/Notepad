@@ -7,7 +7,7 @@ The main process coordinates OS-level window lifecycles and backend operations:
 - **Filesystem Integration** (`fsControllers.js`): Persists binary SQLite file streams to local user data directories.
 - **Window Management**: Launches a single main application container window (`main_notepad`) configured with transparency, hardware acceleration flags, and custom border frames.
 - **System Tray Icon**: Integrates app management utilities (re-centering workspace coordinates, reloading UI webviews, spawning widgets) into the taskbar tray menu.
-- **Structured Logging** (`logger.js`): Coordinates standard output writes to `%APPDATA%/my-notebook-desktop/notepad_runtime.log`.
+- **Structured Logging** (`logger.js`): Coordinates standard output writes to `%APPDATA%/Notepad/notepad_runtime.log`.
 
 ## 2. Frontend Layer (React + Vite Client)
 The renderer process executes standard React state-flow layouts inside the main Electron window:

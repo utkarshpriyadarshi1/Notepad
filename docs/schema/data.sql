@@ -1,5 +1,5 @@
 -- data.sql
--- Static assets and template data seed records (Schema Version 11)
+-- Static assets and template data seed records (Schema Version 14)
 
 -- Insert default folder
 INSERT OR IGNORE INTO sticky_folders (folder_uuid, folder_name) 
@@ -12,4 +12,4 @@ VALUES ('note_1', 'folder_1', 'New Note', 'yellow', 'markdown', '# Write ideas h
 
 -- Insert migration record
 INSERT OR IGNORE INTO sys_migrations (version_build) 
-VALUES (11);
+VALUES (14);
