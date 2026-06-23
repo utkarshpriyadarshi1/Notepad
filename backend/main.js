@@ -5,7 +5,7 @@ const fs = require('fs');
 const config = require('../app.config.json');
 // 1. Import local sub-system brain modules
 const {setupFilesystemHandlers} = require('./fsControllers');
-const {setupServiceHandlers, getWorkerStatus} = require('./serviceController');
+const {setupServiceHandlers, getWorkerStatus, toggleBackgroundWorker} = require('./serviceController');
 const {writeLog, setupLoggerIPC} = require('./logger'); // 👈 Import Logging system
 
 // Helper to resolve icon asset paths correctly in both development and production
@@ -19,93 +19,92 @@ function getAssetPath(configPath) {
 
 let tray = null;
 // app.disableHardwareAcceleration();  // Forces alpha layer glass transparency rendering
-
 function rebuildTrayMenu() {
     if (!tray) return;
     const isRunning = getWorkerStatus();
+    const windows = BrowserWindow.getAllWindows();
 
-    tray.setContextMenu(Menu.buildFromTemplate([{
-        label: `New ${config.appName} Note`,
-        click: () => createWidgetWindow()
-    }, {type: 'separator'}, {
-        label: 'Show All Notes',
-        click: () => BrowserWindow.getAllWindows().forEach(w => w.show())
-    }, {label: 'Hide All Notes', click: () => BrowserWindow.getAllWindows().forEach(w => w.hide())},
-
-        {type: 'separator'}, {
-            label: '🎯 Force UI Reload Refresh',
-            click: () => BrowserWindow.getAllWindows().forEach(w => w.webContents.reload())
-        }, {
-            label: '🎯 Reset Notes Position (Center)', click: () => {
-                const windows = BrowserWindow.getAllWindows();
+    tray.setContextMenu(Menu.buildFromTemplate([
+        {
+            label: `New ${config.appName} Note`,
+            click: () => createWidgetWindow()
+        },
+        { type: 'separator' },
+        {
+            label: 'Show All Windows',
+            click: () => windows.forEach(w => w.show())
+        },
+        {
+            label: 'Hide All Windows',
+            click: () => windows.forEach(w => w.hide())
+        },
+        {
+            label: 'Rescue Window Layout',
+            click: () => {
                 const primaryDisplay = screen.getPrimaryDisplay();
-                const {width, height} = primaryDisplay.workAreaSize;
-
-                const defaultWidth = config.windowDefaults?.width || 350;
-                const defaultHeight = config.windowDefaults?.height || 420;
-                const centerX = Math.floor((width - defaultWidth) / 2);
-                const centerY = Math.floor((height - defaultHeight) / 2);
+                const { width, height } = primaryDisplay.workAreaSize;
 
                 windows.forEach((win, index) => {
-                    // Offset cascading windows slightly if multiple windows are being reset at once
-                    const offset = index * 25;
-                    win.setBounds({
-                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
-                    });
+                    const isMain = win.widgetId === 'main_notepad';
+                    const winW = isMain ? 1000 : (config.windowDefaults?.width || 350);
+                    const winH = isMain ? 650 : (config.windowDefaults?.height || 420);
 
-                    // Force-notify the specific React window hook layer to log the new position parameters
-                    win.webContents.send('window-moved', {
-                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
-                    });
+                    const centerX = Math.floor((width - winW) / 2);
+                    const centerY = Math.floor((height - winH) / 2);
+
+                    const offset = isMain ? 0 : index * 25;
+                    const bounds = {
+                        x: centerX + offset,
+                        y: centerY + offset,
+                        width: winW,
+                        height: winH
+                    };
+
+                    win.setBounds(bounds);
+                    win.webContents.send('window-moved', bounds);
                 });
-                console.log("⚡ [Rescue Operations] All active windows re-centered via taskbar tray context menu.");
+                console.log("⚡ [Rescue Operations] All windows layout reset and re-centered.");
             }
-        }, {
-            label: '🎯 Reset Notes Size', click: () => {
-                const windows = BrowserWindow.getAllWindows();
-                const primaryDisplay = screen.getPrimaryDisplay();
-                const {width, height} = primaryDisplay.workAreaSize;
-
-                const defaultWidth = 350;
-                const defaultHeight = 420;
-                const centerX = Math.floor((width - defaultWidth) / 2);
-                const centerY = Math.floor((height - defaultHeight) / 2);
-
-                windows.forEach((win, index) => {
-                    // Offset cascading windows slightly if multiple windows are being reset at once
-                    const offset = index * 25;
-                    win.setBounds({
-                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
-                    });
-
-                    // Force-notify the specific React window hook layer to log the new position parameters
-                    win.webContents.send('window-moved', {
-                        x: centerX + offset, y: centerY + offset, width: defaultWidth, height: defaultHeight
-                    });
-                });
-                console.log("⚡ [Rescue Operations] All active windows re-centered via taskbar tray context menu.");
-            }
-        }, {type: 'separator'}, {label: `Core Engine Status: [${isRunning ? 'RUNNING' : 'STOPPED'}]`, enabled: false}, {
-            label: 'Start Task Engine Service', enabled: !isRunning, click: () => {
-                ipcMain.emit('control-task-service', null, 'start');
-                rebuildTrayMenu();
-            }
-        }, {
-            label: 'Stop Task Engine Service', enabled: isRunning, click: () => {
-                ipcMain.emit('control-task-service', null, 'stop');
-                rebuildTrayMenu();
-            }
-        }, {
-            label: 'Restart Task Engine Service', click: () => {
-                ipcMain.emit('control-task-service', null, 'restart');
-                rebuildTrayMenu();
-            }
-        }, {type: 'separator'}, {
-            label: `Quit Application Process`, click: () => {
+        },
+        {
+            label: 'Force UI Refresh',
+            click: () => windows.forEach(w => w.webContents.reload())
+        },
+        { type: 'separator' },
+        {
+            label: 'Sync Engine',
+            submenu: [
+                {
+                    label: `Status: ${isRunning ? 'RUNNING' : 'STOPPED'}`,
+                    enabled: false
+                },
+                {
+                    label: isRunning ? 'Stop Engine' : 'Start Engine',
+                    click: () => {
+                        toggleBackgroundWorker(isRunning ? 'stop' : 'start');
+                        setTimeout(() => rebuildTrayMenu(), 100);
+                        windows.forEach(w => w.webContents.send('window-state-updated'));
+                    }
+                },
+                {
+                    label: 'Restart Engine',
+                    click: () => {
+                        toggleBackgroundWorker('restart');
+                        setTimeout(() => rebuildTrayMenu(), 100);
+                        windows.forEach(w => w.webContents.send('window-state-updated'));
+                    }
+                }
+            ]
+        },
+        { type: 'separator' },
+        {
+            label: `Quit Application Process`,
+            click: () => {
                 app.isQuitting = true;
                 app.quit();
             }
-        }]));
+        }
+    ]));
 }
 
 app.whenReady().then(() => {

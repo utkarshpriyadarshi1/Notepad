@@ -339,6 +339,11 @@ export default function StickyNoteView({
                         db={db}
                         onTriggerRefresh={onTriggerRefresh}
 
+                        onToggleTask={toggleTask}
+                        onDeleteTask={deleteTaskGlobal}
+                        onRenameTask={renameTaskGlobal}
+                        onExportTask={exportSingleTask}
+
                         // Widget/Note Management Props
                         allWidgets={allNotes}
                         currentWidgetId={windowId}

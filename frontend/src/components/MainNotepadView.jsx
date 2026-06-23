@@ -2869,6 +2869,11 @@ export default function MainNotepadView({
                     db={db}
                     onTriggerRefresh={onTriggerRefresh}
                     
+                    onToggleTask={toggleTask}
+                    onDeleteTask={deleteTaskGlobal}
+                    onRenameTask={renameTaskGlobal}
+                    onExportTask={exportSingleTask}
+                    
                     // Widget/Note Management Props
                     allWidgets={allNotes}
                     currentWidgetId={null}

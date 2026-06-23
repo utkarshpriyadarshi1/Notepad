@@ -28,4 +28,4 @@ function setupServiceHandlers(ipcMain) {
     });
 }
 
-module.exports = { setupServiceHandlers, getWorkerStatus: () => backgroundWorkerProcess };
+module.exports = { setupServiceHandlers, getWorkerStatus: () => backgroundWorkerProcess, toggleBackgroundWorker };

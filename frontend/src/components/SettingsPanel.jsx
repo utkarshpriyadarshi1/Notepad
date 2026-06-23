@@ -1,8 +1,9 @@
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import TabNavigation from './settings/TabNavigation';
 import PreferencesTab from './settings/PreferencesTab';
 import DiagnosticsTab from './settings/DiagnosticsTab';
 import LogsTab from './settings/LogsTab';
+import DataHubTab from './settings/DataHubTab';
 
 export default function SettingsPanel({
                                            isOpen,
@@ -27,9 +28,35 @@ export default function SettingsPanel({
                                            editorPrefs,
                                            onUpdateEditorPrefs,
                                            
-                                           ipcRenderer
+                                           ipcRenderer,
+
+                                           // Global Task CRUD
+                                           onToggleTask,
+                                           onDeleteTask,
+                                           onRenameTask,
+                                           onExportTask
                                        }) {
     const [activeTab, setActiveTab] = useState("config");
+    const [allTasks, setAllTasks] = useState([]);
+
+    useEffect(() => {
+        if (db && isOpen && activeTab === 'datahub') {
+            try {
+                const res = db.exec("SELECT item_uuid, item_text_payload, is_marked_completed FROM task_items");
+                if (res && res.length > 0 && res[0].values) {
+                    setAllTasks(res[0].values.map(row => ({
+                        id: row[0],
+                        text: row[1],
+                        done: row[2] === 1
+                    })));
+                } else {
+                    setAllTasks([]);
+                }
+            } catch (err) {
+                console.error("Failed to query all tasks for DataHub:", err);
+            }
+        }
+    }, [db, isOpen, activeTab, onTriggerRefresh]);
 
     if (!isOpen) return null;
 
@@ -61,6 +88,16 @@ export default function SettingsPanel({
                 return (
                     <LogsTab
                         ipcRenderer={ipcRenderer}
+                    />
+                );
+            case "datahub":
+                return (
+                    <DataHubTab
+                        tasks={allTasks}
+                        onToggleTask={onToggleTask}
+                        onDeleteTask={onDeleteTask}
+                        onRenameTask={onRenameTask}
+                        onExportTask={onExportTask}
                     />
                 );
             default:
